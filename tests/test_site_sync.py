@@ -139,3 +139,55 @@ def test_page_reads_the_block_it_ships(page: str):
 def test_generated_markers_are_present(page: str):
     assert sync_site.BEGIN in page
     assert sync_site.END in page
+
+
+# -- 04 / Demo, the interactive walkthrough ---------------------------------
+#
+# The walkthrough renders entirely from the generated payload, so the failure
+# it is exposed to is a quiet one: a rule loses a field, and one of the five
+# steps renders as a heading over blank space. Nothing else on the page would
+# notice.
+
+
+def test_the_demo_can_be_opened_and_has_somewhere_to_render(page: str):
+    """The nav button and the element ids demo() looks up must both exist.
+
+    Renaming one of these does not throw anywhere a test would see it - the
+    button just stops doing anything.
+    """
+    assert "data-demo-open" in page, "nothing on the page opens the walkthrough"
+    for element_id in ("demo-scrim", "demo-modal", "demo-body", "demo-rail",
+                       "demo-count", "demo-back", "demo-next", "demo-close"):
+        assert f'id="{element_id}"' in page, f"demo() queries #{element_id}, markup has no such id"
+        assert f'getElementById("{element_id}")' in page, f"#{element_id} is in the markup but unused"
+
+
+def test_every_featured_case_can_fill_all_five_steps(payload: dict):
+    """Step 3 prints the pattern and severity; step 4 prints the fix steps."""
+    for case in payload["cases"]:
+        assert case["pattern"].strip(), f"{case['id']} has no pattern for step 3"
+        assert case["severity"].strip(), f"{case['id']} has no severity for step 3"
+        assert case["category"].strip(), f"{case['id']} has no category for step 3"
+        assert case["fixSteps"], f"{case['id']} has no fixSteps - step 4 renders an empty list"
+        for entry in case["fixSteps"]:
+            assert entry.strip()
+
+
+def test_the_unsafe_code_each_case_shows_really_trips_that_rule(payload: dict):
+    """Step 2 claims this is what gets caught. Step 3 names the rule."""
+    for case in payload["cases"]:
+        findings, _ = scan_diff(synthesize_diff("demo.py", case["unsafe"]))
+        assert case["id"] in {f.rule_id for f in findings}, (
+            f"the walkthrough shows {case['unsafe']!r} being caught by "
+            f"{case['id']}, but the guardrail does not flag it"
+        )
+
+
+def test_the_rewrite_each_case_ends_on_is_actually_clean(payload: dict):
+    """Step 5 says this is the edit that lands. It has to survive the guardrail."""
+    for case in payload["cases"]:
+        findings, _ = scan_diff(synthesize_diff("demo.py", case["safe"]))
+        assert not findings, (
+            f"{case['id']} offers a 'safer pattern' that still trips "
+            f"{[f.rule_id for f in findings]}"
+        )

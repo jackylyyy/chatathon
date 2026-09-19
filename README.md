@@ -59,11 +59,15 @@ The whole story in five acts, paced by the presenter — press Enter to advance,
 
 It writes nothing to disk, so it is safe to run live and safe to re-run. `tests/test_present.py` drives every act end to end, because a demo script that breaks on stage is the one failure that actually costs something.
 
-For the landing page, serve the repo root and open <http://localhost:8080>:
+### Or in the browser
+
+Serve the repo root and open <http://localhost:8080>:
 
 ```bash
 python -m http.server 8080
 ```
+
+**04 / Demo** in the top bar runs the same five beats as a click-through walkthrough — useful when you want the audience driving, or when you are sending a link rather than standing in front of a terminal. Step 1 is a real choice: the visitor picks which dangerous edit the agent attempts, and the interception, the explanation and the rewrite all come from that rule's own entry in the generated data block. Nothing in it is written twice; edit the explanation in `guard/rules.py` and the walkthrough changes with it.
 
 ---
 
@@ -162,7 +166,7 @@ Only added lines are ever judged — nobody is served by blocking an agent over 
 pytest
 ```
 
-104 tests, no network required. `pyright` is clean.
+108 tests, no network required. `pyright` is clean.
 
 If VS Code shows red squiggles on `import typer` / `rich` / `anthropic`, it hasn't picked up the venv: run **Python: Select Interpreter** and choose `.venv`.
 

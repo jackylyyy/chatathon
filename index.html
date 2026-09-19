@@ -176,8 +176,11 @@ img,svg{ max-width:100%; }
 .brand{ display:flex; align-items:center; gap:.75rem; }
 .brand-mark{ display:grid; place-items:center; height:2.25rem; width:2.25rem; border-radius:.5rem; color:hsl(var(--primary)); }
 .brand-text{ font-size:.875rem; font-weight:700; letter-spacing:-.04em; }
-.nav-links{ display:none; align-items:center; gap:2rem; }
-.nav-links a{ font-size:.75rem; color:hsl(var(--muted)); transition:color .2s; }
+/* The section links are desktop-only, but the demo button is not: it is the
+   one control a visitor on a phone should still be able to reach. So the row
+   itself is always laid out and only the `a`s drop away. */
+.nav-links{ display:flex; align-items:center; gap:1rem; }
+.nav-links a{ display:none; font-size:.75rem; color:hsl(var(--muted)); transition:color .2s; }
 .nav-links a:hover{ color:hsl(var(--foreground)); }
 .nav-right{ display:flex; align-items:center; gap:1rem; }
 
@@ -404,6 +407,144 @@ img,svg{ max-width:100%; }
 .foot .c{ font-family:var(--font-mono); font-size:10px; color:hsl(var(--muted) / .6); }
 
 /* ============================================================
+   DEMO — the interactive walkthrough
+   ============================================================ */
+.nav-links .demo-link{
+  display:inline-flex; align-items:center; gap:.4rem; white-space:nowrap;
+  font-size:.75rem; color:hsl(var(--accent)); padding:0;
+  transition:color .2s, text-shadow .2s;
+}
+.nav-links .demo-link:hover{ text-shadow:0 0 18px hsl(184 100% 50% / .6); }
+.nav-links .demo-link .dot{
+  height:.375rem; width:.375rem; border-radius:9999px;
+  background:hsl(var(--accent)); box-shadow:0 0 8px hsl(184 100% 50%);
+}
+
+.demo-scrim{
+  position:fixed; inset:0; z-index:60; display:none;
+  align-items:center; justify-content:center; padding:1rem;
+  background:hsl(240 30% 2% / .82);
+  backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px);
+}
+.demo-scrim.open{ display:flex; }
+.demo-modal{
+  position:relative; display:flex; flex-direction:column;
+  width:min(64rem,100%); max-height:min(46rem,94vh);
+  border-radius:1rem; border:1px solid hsl(var(--border)); overflow:hidden;
+}
+.demo-bar{
+  display:flex; align-items:center; justify-content:space-between; gap:1rem;
+  border-bottom:1px solid hsl(var(--border) / .6); padding:.75rem 1rem; flex:none;
+}
+.demo-bar .who{ display:flex; align-items:center; gap:.625rem; min-width:0; }
+.demo-bar .tag{ font-family:var(--font-mono); font-size:11px; color:hsl(var(--muted)); white-space:nowrap; }
+.demo-close{
+  display:grid; place-items:center; height:2rem; width:2rem; flex:none;
+  border-radius:.5rem; color:hsl(var(--muted)); transition:color .2s, background .2s;
+}
+.demo-close:hover{ color:hsl(var(--foreground)); background:hsl(var(--surface-2)); }
+
+.demo-rail{ display:flex; gap:.375rem; padding:0 1rem .75rem; flex:none; }
+.demo-rail i{
+  height:2px; flex:1; border-radius:9999px; display:block;
+  background:hsl(var(--border)); transition:background .3s, box-shadow .3s;
+}
+.demo-rail i.done{ background:hsl(var(--primary) / .55); }
+.demo-rail i.now{ background:hsl(var(--accent)); box-shadow:0 0 10px hsl(184 100% 50% / .8); }
+
+.demo-body{ overflow-y:auto; padding:1.5rem 1.25rem; flex:1 1 auto; }
+.demo-eyebrow{
+  font-family:var(--font-mono); font-size:11px; letter-spacing:.14em;
+  color:hsl(var(--accent)); margin-bottom:.625rem;
+}
+.demo-h{ font-family:var(--font-display); letter-spacing:-.03em; font-size:1.5rem; font-weight:700; line-height:1.15; }
+.demo-sub{ margin-top:.625rem; font-size:.9375rem; line-height:1.65; color:hsl(var(--muted)); max-width:46rem; }
+.demo-sub b{ color:hsl(var(--foreground)); font-weight:600; }
+
+.demo-pick{ margin-top:1.25rem; display:grid; gap:.75rem; }
+.demo-card{
+  display:block; width:100%; text-align:left; border-radius:.75rem;
+  padding:1rem; transition:transform .2s, box-shadow .2s;
+}
+.demo-card:hover{ transform:translateY(-2px); box-shadow:0 0 24px -4px hsl(262 83% 58% / .45); }
+.demo-card .rid{ font-family:var(--font-mono); font-size:11px; color:hsl(var(--primary)); }
+.demo-card .rn{ margin-top:.25rem; font-size:.9375rem; font-weight:600; }
+.demo-card .rx{ margin-top:.5rem; font-family:var(--font-mono); font-size:11.5px; color:hsl(var(--muted)); overflow-x:auto; white-space:pre; }
+
+.demo-panel{ margin-top:1.25rem; border-radius:.75rem; overflow:hidden; }
+.demo-panel-bar{
+  display:flex; align-items:center; justify-content:space-between; gap:.75rem;
+  border-bottom:1px solid hsl(var(--border) / .6); padding:.5rem .875rem;
+  font-family:var(--font-mono); font-size:11px; color:hsl(var(--muted));
+}
+.demo-code{
+  font-family:var(--font-mono); font-size:12.5px; line-height:1.75;
+  white-space:pre; overflow-x:auto; padding:1rem .875rem; margin:0;
+}
+.demo-code .add{ display:block; color:hsl(var(--destructive)); background:hsl(0 84% 62% / .07); }
+.demo-code .ok{ display:block; color:hsl(var(--accent)); background:hsl(184 100% 50% / .06); }
+
+.demo-stamp{
+  margin-top:1.25rem; display:flex; align-items:center; gap:.875rem;
+  border-radius:.75rem; padding:.875rem 1rem;
+  border:1px solid hsl(var(--destructive) / .4); background:hsl(0 84% 62% / .08);
+}
+.demo-stamp .word{
+  font-family:var(--font-display); font-size:1.125rem; font-weight:700; letter-spacing:.04em;
+  color:hsl(var(--destructive));
+}
+.demo-stamp .why{ font-size:.8125rem; color:hsl(var(--muted)); }
+
+.demo-meta{ margin-top:1rem; display:flex; flex-wrap:wrap; gap:.5rem; }
+.demo-chip{
+  font-family:var(--font-mono); font-size:11px; border-radius:9999px;
+  padding:.25rem .625rem; border:1px solid hsl(var(--border)); color:hsl(var(--muted));
+}
+.demo-chip.sev{ border-color:hsl(var(--destructive) / .5); color:hsl(var(--destructive)); }
+
+.demo-quote{
+  margin-top:1.25rem; border-radius:.75rem; padding:1rem 1.125rem;
+  border-left:2px solid hsl(var(--primary)); background:hsl(var(--surface-2));
+}
+.demo-quote .lbl{ font-family:var(--font-mono); font-size:10.5px; letter-spacing:.12em; color:hsl(var(--primary)); }
+.demo-quote p{ margin-top:.5rem; font-size:.875rem; line-height:1.7; color:hsl(var(--foreground) / .9); }
+.demo-quote code{ font-family:var(--font-mono); font-size:.8125rem; color:hsl(var(--accent)); }
+
+.demo-steps{ margin-top:1rem; padding-left:1.125rem; }
+.demo-steps li{ font-size:.875rem; line-height:1.7; color:hsl(var(--muted)); margin-bottom:.375rem; }
+.demo-steps li::marker{ color:hsl(var(--accent)); font-family:var(--font-mono); font-size:.75rem; }
+
+.demo-foot{
+  display:flex; align-items:center; justify-content:space-between; gap:1rem;
+  border-top:1px solid hsl(var(--border) / .6); padding:.875rem 1rem; flex:none;
+}
+/* Both of these are desktop affordances: on a phone there is no keyboard to
+   hint at, and the long title just collides with the step counter. */
+.demo-hint{ display:none; font-family:var(--font-mono); font-size:10.5px; color:hsl(var(--muted) / .7); }
+.demo-bar .tag.long{ display:none; }
+.demo-nav{ display:flex; align-items:center; gap:.625rem; margin-left:auto; }
+.demo-btn{
+  border-radius:9999px; padding:.5rem 1rem; font-size:.8125rem; font-weight:600;
+  color:hsl(var(--muted)); transition:color .2s, transform .2s;
+}
+.demo-btn:hover:not(:disabled){ color:hsl(var(--foreground)); }
+.demo-btn:disabled{ opacity:.3; cursor:not-allowed; }
+.demo-btn.go{
+  background:hsl(var(--primary)); color:hsl(var(--primary-foreground));
+  box-shadow:0 0 24px -4px hsl(262 83% 58% / .55);
+}
+.demo-btn.go:hover:not(:disabled){ filter:brightness(1.1); transform:translateY(-1px); }
+
+@media (min-width:640px){
+  .demo-body{ padding:2rem 1.75rem; }
+  .demo-h{ font-size:1.875rem; }
+  .demo-foot,.demo-bar{ padding-inline:1.5rem; }
+  .demo-rail{ padding-inline:1.5rem; }
+  .demo-hint{ display:block; }
+  .demo-bar .tag.long{ display:inline; }
+}
+
+/* ============================================================
    BREAKPOINTS
    ============================================================ */
 @media (min-width:640px){
@@ -416,7 +557,8 @@ img,svg{ max-width:100%; }
   .foot-in{ flex-direction:row; }
 }
 @media (min-width:1024px){
-  .nav-links{ display:flex; }
+  .nav-links{ gap:2rem; }
+  .nav-links a{ display:inline-block; }
   .hero-copy{ grid-column:span 7; }
   .hero-panel{ grid-column:span 5; margin-top:0; }
   .stream-rail{ display:block; grid-column:span 1; }
@@ -458,6 +600,9 @@ img,svg{ max-width:100%; }
       <a href="#stream">01 / Stream</a>
       <a href="#vault">02 / Vault</a>
       <a href="#proxy">03 / Proxy</a>
+      <button type="button" class="demo-link" data-demo-open>
+        <span class="dot anim-glow"></span>04 / Demo
+      </button>
     </nav>
     <div class="nav-right">
       <button id="guard-toggle" class="toggle neo-sm" aria-pressed="true">
@@ -699,6 +844,44 @@ a variable in api.py</span>
 
 </main>
 
+<!-- ============ 04 / DEMO — the interactive walkthrough ============
+     Every word of content in here is read out of the generated data block
+     below at runtime. The steps are structure; the rules, the unsafe code,
+     the explanation and the fix all come from guard/rules.py. -->
+<div class="demo-scrim" id="demo-scrim" role="dialog" aria-modal="true"
+     aria-labelledby="demo-title" hidden>
+  <div class="demo-modal neo-raised" id="demo-modal">
+    <div class="demo-bar">
+      <div class="who">
+        <span class="dots">
+          <i style="background:hsl(var(--destructive)/.7)"></i>
+          <i style="background:hsl(var(--chart-4)/.7)"></i>
+          <i style="background:hsl(var(--accent)/.7)"></i>
+        </span>
+        <span class="tag long">sentinel · interactive walkthrough</span>
+      </div>
+      <div class="who">
+        <span class="tag tnum" id="demo-count">1 / 5</span>
+        <button type="button" class="demo-close" id="demo-close" aria-label="Close the walkthrough">
+          <span data-icon="x" data-size="18"></span>
+        </button>
+      </div>
+    </div>
+
+    <div class="demo-rail" id="demo-rail" aria-hidden="true"></div>
+
+    <div class="demo-body" id="demo-body" tabindex="-1"></div>
+
+    <div class="demo-foot">
+      <span class="demo-hint">← → to move · Esc to close</span>
+      <div class="demo-nav">
+        <button type="button" class="demo-btn" id="demo-back">Back</button>
+        <button type="button" class="demo-btn go" id="demo-next">Next</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- Everything the page says about the ruleset comes from this block, which is
      written by `python scripts/sync_site.py` straight out of the installed
      package. Do not hand-edit it: `tests/test_site_sync.py` regenerates it and
@@ -709,7 +892,7 @@ a variable in api.py</span>
   "version": "0.1.0",
   "repo": "https://github.com/jackylyyy/chatathon",
   "ruleCount": 15,
-  "testCount": 104,
+  "testCount": 108,
   "manifests": [
     "package.json",
     "requirements.txt",
@@ -1088,6 +1271,8 @@ a variable in api.py</span>
     "terminal-square": '<rect width="18" height="18" x="3" y="3" rx="2"/><path d="m7 11 2-2-2-2"/><path d="M11 13h4"/>',
     "book-open": '<path d="M12 7v14"/><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/>',
     "chevron-down": '<path d="m6 9 6 6 6-6"/>',
+    "x": '<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',
+    "rotate-ccw": '<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/>',
     "key-round": '<path d="M2.59 17.41A2 2 0 0 0 2 18.83V21a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h1a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h.17a2 2 0 0 0 1.41-.59l.82-.81a6.5 6.5 0 1 0-4-4z"/><circle cx="16.5" cy="7.5" r=".6" fill="currentColor"/>',
     "code-2": '<path d="m18 16 4-4-4-4"/><path d="m6 8-4 4 4 4"/><path d="m14.5 4-5 16"/>',
     "binary": '<rect x="14" y="14" width="4" height="6" rx="2"/><rect x="6" y="4" width="4" height="6" rx="2"/><path d="M6 20h4"/><path d="M14 10h4"/><path d="M6 14h2v6"/><path d="M14 4h2v6"/>',
@@ -1383,6 +1568,232 @@ a variable in api.py</span>
     window.addEventListener("scroll", check, { passive: true });
     window.addEventListener("resize", check);
     check();
+  })();
+
+  /* =========================================================
+     04 / DEMO — the interactive walkthrough
+
+     The same five beats as `python scripts/present.py`, driven by clicks
+     instead of Enter. Step 1 is a real choice: the visitor picks which
+     dangerous edit the agent attempts, and every screen after that is
+     rendered from that rule's own entry in the generated data. Nothing here
+     is written twice - change the explanation in guard/rules.py and this
+     walkthrough changes with it.
+     ========================================================= */
+  (function demo() {
+    var scrim = document.getElementById("demo-scrim");
+    var modal = document.getElementById("demo-modal");
+    var body = document.getElementById("demo-body");
+    var rail = document.getElementById("demo-rail");
+    var count = document.getElementById("demo-count");
+    var back = document.getElementById("demo-back");
+    var next = document.getElementById("demo-next");
+    var closeBtn = document.getElementById("demo-close");
+    if (!scrim || !CASES.length) return;
+
+    var TOTAL = 5;
+    var step = 1;
+    var picked = 0;
+    var lastFocus = null;
+
+    function chosen() { return CASES[picked] || CASES[0]; }
+
+    /* Inline `backticks` in the hand-written explanations are the only markup
+       those strings carry, so they are the only thing we turn into HTML -
+       after escaping, never before. */
+    function ticks(s) {
+      return esc(s).replace(/`([^`]+)`/g, "<code>$1</code>");
+    }
+
+    function codeBlock(label, text, cls) {
+      var lines = String(text).split("\n").map(function (line) {
+        return '<span class="' + cls + '">' + (esc(line) || "&nbsp;") + "</span>";
+      }).join("");
+      return '' +
+        '<div class="demo-panel neo-inset">' +
+          '<div class="demo-panel-bar"><span>' + esc(label) + "</span>" +
+            '<span class="mono">' + (cls === "add" ? "not yet on disk" : "what lands instead") + "</span>" +
+          "</div>" +
+          '<pre class="demo-code">' + lines + "</pre>" +
+        "</div>";
+    }
+
+    function head(eyebrow, title, sub) {
+      return '<div class="demo-eyebrow">' + esc(eyebrow) + "</div>" +
+        '<h2 class="demo-h" id="demo-title">' + title + "</h2>" +
+        (sub ? '<p class="demo-sub">' + sub + "</p>" : "");
+    }
+
+    var STEPS = [
+      /* 1 — the visitor decides what the agent is about to do wrong. */
+      function () {
+        return head(
+          "STEP 01 — THE SETUP",
+          "What does your agent try to write?",
+          "Pick one. These are three of the <b>" + DATA.ruleCount + " patterns</b> the " +
+          "guardrail actually ships with — the code below is each rule's own example."
+        ) +
+        '<div class="demo-pick">' + CASES.map(function (c, i) {
+          return '<button type="button" class="demo-card neo-flat" data-pick="' + i + '">' +
+            '<div class="rid">' + esc(c.id) + "</div>" +
+            '<div class="rn">' + esc(c.name) + "</div>" +
+            '<div class="rx">' + esc(c.unsafe) + "</div>" +
+          "</button>";
+        }).join("") + "</div>";
+      },
+
+      /* 2 — the edit exists, but only as a proposal. */
+      function () {
+        var c = chosen();
+        return head(
+          "STEP 02 — THE PROPOSAL",
+          "The agent proposes the edit.",
+          "Claude Code does not apply this yet. It pauses and hands the whole tool " +
+          "call to Sentinel as JSON on stdin — <b>before anything touches disk.</b>"
+        ) +
+        codeBlock("Write · src/api/reports.py", c.unsafe, "add") +
+        '<div class="demo-meta">' +
+          '<span class="demo-chip">PreToolUse</span>' +
+          '<span class="demo-chip">matcher: Write|Edit|MultiEdit</span>' +
+          '<span class="demo-chip">--fast · no model call</span>' +
+        "</div>";
+      },
+
+      /* 3 — the verdict, and the rule that produced it. */
+      function () {
+        var c = chosen();
+        return head(
+          "STEP 03 — THE INTERCEPTION",
+          "Sentinel reads it first.",
+          "Only the <b>added</b> lines are judged, so a pre-existing problem is never " +
+          "blamed on the agent. One line matched:"
+        ) +
+        '<div class="demo-stamp">' +
+          '<span class="word">DENY</span>' +
+          '<span class="why">The write never happened. <b>' + esc(c.name) + "</b></span>" +
+        "</div>" +
+        '<div class="demo-meta">' +
+          '<span class="demo-chip sev">' + esc(c.severity) + "</span>" +
+          '<span class="demo-chip">' + esc(c.id) + "</span>" +
+          '<span class="demo-chip">' + esc(c.category) + "</span>" +
+        "</div>" +
+        '<div class="demo-panel neo-inset" style="margin-top:1rem">' +
+          '<div class="demo-panel-bar"><span>the pattern that matched</span></div>' +
+          '<pre class="demo-code">' + esc(c.pattern) + "</pre>" +
+        "</div>";
+      },
+
+      /* 4 — the part that is not a linter. */
+      function () {
+        var c = chosen();
+        var steps = (c.fixSteps || []).map(function (s) {
+          return "<li>" + ticks(s) + "</li>";
+        }).join("");
+        return head(
+          "STEP 04 — THE CORRECTION",
+          "The agent is told why.",
+          "This is the whole idea. A block with no reason teaches an agent to try a " +
+          "variation; <b>a block with a named safer pattern teaches it to write the " +
+          "right thing.</b> This text is injected straight into its context:"
+        ) +
+        '<div class="demo-quote">' +
+          '<div class="lbl">WHY THIS IS A PROBLEM</div>' +
+          "<p>" + ticks(c.verdict) + "</p>" +
+        "</div>" +
+        '<div class="demo-quote">' +
+          '<div class="lbl">WHAT AN ATTACKER DOES WITH IT</div>' +
+          "<p>" + ticks(c.plain) + "</p>" +
+        "</div>" +
+        (steps ? '<ol class="demo-steps">' + steps + "</ol>" : "");
+      },
+
+      /* 5 — the edit that actually lands. */
+      function () {
+        var c = chosen();
+        return head(
+          "STEP 05 — THE REWRITE",
+          "So it writes this instead.",
+          "<b>" + esc(c.fixSummary) + "</b> No human was in the loop, and no " +
+          "vulnerable line ever reached the repository."
+        ) +
+        codeBlock("Write · src/api/reports.py", c.safe, "ok") +
+        '<p class="demo-sub" style="margin-top:1.25rem">' +
+          "Same five beats run in your terminal with <code>python scripts/present.py</code>. " +
+          "To put this in front of your own agent: <code>sentinel install-hook</code>, then " +
+          "restart Claude Code." +
+        "</p>";
+      }
+    ];
+
+    function render() {
+      body.innerHTML = STEPS[step - 1]();
+      paintIcons(body);
+
+      count.textContent = step + " / " + TOTAL;
+      rail.innerHTML = STEPS.map(function (_, i) {
+        var n = i + 1;
+        return '<i class="' + (n === step ? "now" : n < step ? "done" : "") + '"></i>';
+      }).join("");
+
+      back.disabled = step === 1;
+      // Step 1 is a choice, not a page: the only way forward is to pick one.
+      next.disabled = step === 1;
+      next.textContent = step === TOTAL ? "Start over" : "Next";
+      if (step === 1) next.textContent = "Pick one above";
+
+      body.scrollTop = 0;
+      body.focus();
+    }
+
+    function go(to) {
+      step = Math.min(Math.max(to, 1), TOTAL);
+      render();
+    }
+
+    function open() {
+      lastFocus = document.activeElement;
+      scrim.hidden = false;
+      scrim.classList.add("open");
+      document.body.style.overflow = "hidden";
+      step = 1;
+      render();
+    }
+
+    function close() {
+      scrim.classList.remove("open");
+      scrim.hidden = true;
+      document.body.style.overflow = "";
+      if (lastFocus && lastFocus.focus) lastFocus.focus();
+    }
+
+    document.querySelectorAll("[data-demo-open]").forEach(function (el) {
+      el.addEventListener("click", function (e) { e.preventDefault(); open(); });
+    });
+
+    closeBtn.addEventListener("click", close);
+    scrim.addEventListener("mousedown", function (e) {
+      if (!modal.contains(e.target)) close();
+    });
+
+    back.addEventListener("click", function () { go(step - 1); });
+    next.addEventListener("click", function () {
+      if (step === TOTAL) { step = 1; render(); return; }
+      go(step + 1);
+    });
+
+    body.addEventListener("click", function (e) {
+      var card = e.target.closest ? e.target.closest("[data-pick]") : null;
+      if (!card) return;
+      picked = parseInt(card.getAttribute("data-pick"), 10) || 0;
+      go(2);
+    });
+
+    document.addEventListener("keydown", function (e) {
+      if (scrim.hidden) return;
+      if (e.key === "Escape") { close(); return; }
+      if (e.key === "ArrowRight" && step < TOTAL && !next.disabled) go(step + 1);
+      if (e.key === "ArrowLeft" && step > 1) go(step - 1);
+    });
   })();
 
   /* Paint every icon placeholder, including the ones just injected. */
