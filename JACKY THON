@@ -1,1 +1,1271 @@
+#!/usr/bin/env python3
+"""
+snyk_ai_extension.py — AI-powered contextual vulnerability triage.
+
+Pipeline:
+    manifest file -> dependencies -> vulnerability lookup -> reachability
+    analysis -> risk scoring -> AI-generated remediation guidance
+
+This is the single-file build: the scanner and its full test suite live in one
+module so it can be pasted into a Live Share session or dropped into a repo as
+one artifact. Run --selftest to execute the tests.
+
+Usage:
+    python snyk_ai_extension.py --manifest package.json --source ./src
+    python snyk_ai_extension.py --manifest requirements.txt --source . --no-ai
+    python snyk_ai_extension.py --selftest
+    python snyk_ai_extension.py --manifest package.json --source . --fail-on medium
+
+Exit codes:
+    0 — no findings at all
+    1 — at least one finding at or above the --fail-on threshold (default: high)
+    2 — could not complete analysis (bad input, unreadable files)
+    3 — findings present, but all below the --fail-on threshold
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import re
+import sys
+from abc import ABC, abstractmethod
+from collections.abc import Iterable
+from dataclasses import dataclass
+from enum import Enum
+from pathlib import Path
+from typing import Optional
+
+# Windows editors and PowerShell routinely emit a UTF-8 BOM. 'utf-8-sig' strips
+# one if present and is identical to 'utf-8' otherwise, so every file this tool
+# reads goes through it: a BOM used to hard-fail manifest parsing, and it also
+# defeats a first-line import match (re's \s does not cover U+FEFF).
+_ENCODING = "utf-8-sig"
+
+
+# ==========================================================================
+# Domain model
+# ==========================================================================
+
+class Severity(Enum):
+    LOW = 1
+    MEDIUM = 2
+    HIGH = 3
+    CRITICAL = 4
+
+    @classmethod
+    def from_str(cls, value: str) -> "Severity":
+        try:
+            return cls[value.upper()]
+        except KeyError:
+            raise ValueError(f"Unknown severity level: '{value}'")
+
+
+class Reachability(Enum):
+    """
+    Three states, not two. "We could not tell" must never be scored as
+    "not used" — that is the one direction in which a triage tool can
+    silently hide a live vulnerability.
+    """
+    REACHABLE = "reachable"
+    NOT_FOUND = "not-found"
+    UNKNOWN = "unknown"
+
+
+class VersionStatus(Enum):
+    VULNERABLE = "vulnerable"
+    NOT_VULNERABLE = "not-vulnerable"
+    UNKNOWN = "unknown"  # wildcard, range, git URL — could not be compared
+
+
+@dataclass(frozen=True)
+class Dependency:
+    name: str
+    version: str
+    is_direct: bool       # direct deps carry more real-world risk than transitive ones
+    is_dev: bool = False  # dev-only deps never ship, so they are discounted, not promoted
+
+
+@dataclass(frozen=True)
+class Vulnerability:
+    cve_id: str
+    package: str
+    affected_below: str      # "fixed in" version; vulnerable if installed < this
+    severity: Severity
+    exploit_maturity: str    # "proof-of-concept" | "active" | "none-known"
+    summary: str
+    fixed_version: str
+
+
+@dataclass
+class Finding:
+    dependency: Dependency
+    vulnerability: Vulnerability
+    reachability: Reachability
+    version_status: VersionStatus
+    risk_score: float
+    risk_level: Severity
+    remediation: str
+
+    def to_dict(self) -> dict:
+        return {
+            "package": self.dependency.name,
+            "installed_version": self.dependency.version,
+            "cve": self.vulnerability.cve_id,
+            "reachability": self.reachability.value,
+            "version_status": self.version_status.value,
+            "risk_score": round(self.risk_score, 2),
+            "risk_level": self.risk_level.name,
+            "remediation": self.remediation,
+        }
+
+
+# ==========================================================================
+# Version comparison — deliberately minimal and defensive.
+# Malformed version strings are common in the wild; we must never crash on one.
+# ==========================================================================
+
+def parse_version(version: str) -> tuple[int, ...]:
+    """Parses a dotted version string into a comparable tuple, ignoring pre-release suffixes."""
+    core = re.match(r"^v?(\d+(?:\.\d+)*)", version.strip())
+    if not core:
+        raise ValueError(f"Unparseable version string: '{version}'")
+    return tuple(int(part) for part in core.group(1).split("."))
+
+
+def is_version_less_than(installed: str, threshold: str) -> bool:
+    """Returns True if `installed` < `threshold`, padding shorter tuples with zeros."""
+    a, b = parse_version(installed), parse_version(threshold)
+    length = max(len(a), len(b))
+    a = a + (0,) * (length - len(a))
+    b = b + (0,) * (length - len(b))
+    return a < b
+
+
+def classify_version(installed: str, threshold: str) -> VersionStatus:
+    """
+    Wraps the comparison so an uncomparable spec — '*', 'latest', a git URL, a
+    multi-clause range — becomes an explicit UNKNOWN finding the user has to
+    look at, rather than a warning on stderr and a dependency dropped from the
+    report. A gate that silently skips packages is worse than a noisy one.
+    """
+    try:
+        return (VersionStatus.VULNERABLE if is_version_less_than(installed, threshold)
+                else VersionStatus.NOT_VULNERABLE)
+    except ValueError:
+        return VersionStatus.UNKNOWN
+
+
+# ==========================================================================
+# Dependency parsing (strategy pattern — one parser per manifest format)
+# ==========================================================================
+
+class DependencyParser(ABC):
+    @abstractmethod
+    def can_parse(self, manifest_path: Path) -> bool:
+        ...
+
+    @abstractmethod
+    def parse(self, manifest_path: Path) -> list[Dependency]:
+        ...
+
+
+class PackageJsonParser(DependencyParser):
+    def can_parse(self, manifest_path: Path) -> bool:
+        return manifest_path.name == "package.json"
+
+    def parse(self, manifest_path: Path) -> list[Dependency]:
+        try:
+            manifest = json.loads(manifest_path.read_text(encoding=_ENCODING))
+        except json.JSONDecodeError as error:
+            raise ValueError(f"Invalid JSON in {manifest_path}: {error}") from error
+
+        dependencies = []
+        for section, is_dev in (("dependencies", False), ("devDependencies", True)):
+            for name, raw_version in manifest.get(section, {}).items():
+                cleaned = raw_version.lstrip("^~>=< ")
+                dependencies.append(
+                    Dependency(name=name, version=cleaned, is_direct=True, is_dev=is_dev)
+                )
+        return dependencies
+
+
+class PythonRequirementsParser(DependencyParser):
+    _LINE_PATTERN = re.compile(r"^([A-Za-z0-9_\-\.]+)\s*==\s*([\w\.]+)")
+
+    def can_parse(self, manifest_path: Path) -> bool:
+        return manifest_path.suffix == ".txt" and "requirement" in manifest_path.name.lower()
+
+    def parse(self, manifest_path: Path) -> list[Dependency]:
+        dependencies = []
+        for line in manifest_path.read_text(encoding=_ENCODING).splitlines():
+            line = line.strip()
+            if not line or line.startswith("#"):
+                continue
+            match = self._LINE_PATTERN.match(line)
+            if match:
+                name, version = match.groups()
+                dependencies.append(Dependency(name=name, version=version, is_direct=True))
+        return dependencies
+
+
+def resolve_parser(manifest_path: Path, parsers: list[DependencyParser]) -> DependencyParser:
+    for parser in parsers:
+        if parser.can_parse(manifest_path):
+            return parser
+    raise ValueError(f"No parser available for manifest type: {manifest_path.name}")
+
+
+# ==========================================================================
+# Vulnerability database (pluggable — swap for a Snyk API / OSV.dev client)
+# ==========================================================================
+
+class VulnerabilityDatabase(ABC):
+    @abstractmethod
+    def lookup(self, package_name: str) -> list[Vulnerability]:
+        ...
+
+
+class LocalVulnerabilityDatabase(VulnerabilityDatabase):
+    """
+    Demo database backed by a local JSON file. In production this class would be
+    replaced by an HTTP client against Snyk's vulnerability API or OSV.dev —
+    the rest of the pipeline is unaware of where the data comes from.
+    """
+
+    _BUNDLED_SAMPLE: dict[str, list[dict]] = {
+        "lodash": [{
+            "cve_id": "CVE-2021-23337", "affected_below": "4.17.21", "severity": "HIGH",
+            "exploit_maturity": "active",
+            "summary": "Command injection via template function allows arbitrary code execution.",
+            "fixed_version": "4.17.21",
+        }],
+        "flask": [{
+            "cve_id": "CVE-2023-30861", "affected_below": "2.3.2", "severity": "MEDIUM",
+            "exploit_maturity": "proof-of-concept",
+            "summary": "Session cookie disclosure when caching is misconfigured behind a proxy.",
+            "fixed_version": "2.3.2",
+        }],
+        "requests": [{
+            "cve_id": "CVE-2023-32681", "affected_below": "2.31.0", "severity": "MEDIUM",
+            "exploit_maturity": "none-known",
+            "summary": "Proxy-Authorization header leaked across redirects to a different host.",
+            "fixed_version": "2.31.0",
+        }],
+    }
+
+    def __init__(self, database_path: Optional[Path] = None) -> None:
+        self._data = self._load(database_path)
+
+    def _load(self, database_path: Optional[Path]) -> dict[str, list[dict]]:
+        if database_path is None:
+            return self._BUNDLED_SAMPLE
+        try:
+            return json.loads(database_path.read_text(encoding=_ENCODING))
+        except (OSError, json.JSONDecodeError) as error:
+            print(f"warning: could not load vulnerability DB '{database_path}' "
+                  f"({error}); falling back to bundled sample data", file=sys.stderr)
+            return self._BUNDLED_SAMPLE
+
+    def lookup(self, package_name: str) -> list[Vulnerability]:
+        entries = self._data.get(package_name, [])
+        vulnerabilities = []
+        for entry in entries:
+            try:
+                vulnerabilities.append(Vulnerability(
+                    cve_id=entry["cve_id"],
+                    package=package_name,
+                    affected_below=entry["affected_below"],
+                    severity=Severity.from_str(entry["severity"]),
+                    exploit_maturity=entry["exploit_maturity"],
+                    summary=entry["summary"],
+                    fixed_version=entry["fixed_version"],
+                ))
+            except (KeyError, ValueError) as error:
+                print(f"warning: skipping malformed DB entry for '{package_name}': {error}",
+                      file=sys.stderr)
+        return vulnerabilities
+
+
+# ==========================================================================
+# Reachability analysis — is the vulnerable package actually used?
+# This is the key signal that separates noise from real risk, so the two ways
+# it goes wrong both have to be handled: vendored trees (node_modules, virtual
+# envs) contain imports belonging to *other* packages, and a package's install
+# name is frequently not the name it is imported under.
+# ==========================================================================
+
+class ReachabilityAnalyzer:
+    _IMPORT_TEMPLATES = [
+        r"(?:^|\n)\s*import\s+{name}\b",
+        r"(?:^|\n)\s*from\s+{name}\b",
+        r"""require\(\s*['"]{name}(?:/[^'"]*)?['"]\s*\)""",
+        r"""from\s+['"]{name}(?:/[^'"]*)?['"]""",
+        r"""import\(\s*['"]{name}(?:/[^'"]*)?['"]\s*\)""",
+    ]
+    _SCANNABLE_EXTENSIONS = {".py", ".pyi", ".js", ".mjs", ".cjs", ".ts", ".jsx", ".tsx"}
+
+    # Vendored and generated trees. An import found in here belongs to whatever
+    # package vendored it, not to the project under scan.
+    _EXCLUDED_DIRS = {
+        "node_modules", "bower_components", "vendor",
+        "venv", "virtualenv", "site-packages", "__pycache__",
+        "dist", "build", "out", "coverage", "target",
+    }
+
+    # Install name -> import name, for the cases where they differ. Without this
+    # a real vulnerability is scored as unused and quietly demoted.
+    _IMPORT_ALIASES = {
+        "beautifulsoup4": ["bs4"],
+        "pyyaml": ["yaml"],
+        "pillow": ["PIL"],
+        "python-dateutil": ["dateutil"],
+        "python-dotenv": ["dotenv"],
+        "scikit-learn": ["sklearn"],
+        "opencv-python": ["cv2"],
+        "msgpack-python": ["msgpack"],
+        "protobuf": ["google.protobuf"],
+        "pycryptodome": ["Crypto"],
+        "setuptools": ["pkg_resources"],
+        "attrs": ["attr"],
+        "typing-extensions": ["typing_extensions"],
+    }
+
+    def __init__(self, source_dir: Optional[Path]) -> None:
+        self._source_dir = source_dir
+        self._files: Optional[list[Path]] = None
+        self._cache: dict[str, Reachability] = {}
+
+    # -- public API --------------------------------------------------------
+
+    def prescan(self, package_names: Iterable[str]) -> None:
+        """
+        Resolves every package in a single pass over the source tree, so that N
+        vulnerable dependencies cost one walk rather than N walks.
+        """
+        pending = {name: self._patterns_for(name)
+                   for name in package_names if name not in self._cache}
+        if not pending:
+            return
+
+        files = [] if self._source_dir is None else self._source_files()
+        if not files:
+            # No source directory, or nothing scannable in it: we learned
+            # nothing, so record that instead of claiming the packages are unused.
+            for name in pending:
+                self._cache[name] = Reachability.UNKNOWN
+            return
+
+        found: set[str] = set()
+        for file_path in files:
+            if len(found) == len(pending):
+                break
+            try:
+                content = file_path.read_text(encoding=_ENCODING, errors="ignore")
+            except OSError:
+                continue  # unreadable file: skip, don't abort the whole scan
+            for name, patterns in pending.items():
+                if name not in found and any(p.search(content) for p in patterns):
+                    found.add(name)
+
+        for name in pending:
+            self._cache[name] = Reachability.REACHABLE if name in found else Reachability.NOT_FOUND
+
+    def reachability_of(self, package_name: str) -> Reachability:
+        if package_name not in self._cache:
+            self.prescan([package_name])
+        return self._cache[package_name]
+
+    # -- internals ---------------------------------------------------------
+
+    def _candidate_names(self, package_name: str) -> list[str]:
+        candidates = {package_name}
+        candidates.update(self._IMPORT_ALIASES.get(package_name.lower(), []))
+        # PyPI normalises '-' and '.' to '_' at import time (foo-bar -> foo_bar).
+        candidates.add(package_name.replace("-", "_").replace(".", "_"))
+        # Scoped npm packages are imported by their full '@scope/name' spelling,
+        # but the bare name still shows up in re-exports and type-only imports.
+        if package_name.startswith("@") and "/" in package_name:
+            candidates.add(package_name.split("/", 1)[1])
+        return sorted(candidates)
+
+    def _patterns_for(self, package_name: str) -> list[re.Pattern]:
+        patterns = []
+        for candidate in self._candidate_names(package_name):
+            escaped = re.escape(candidate)
+            patterns.extend(re.compile(template.format(name=escaped))
+                            for template in self._IMPORT_TEMPLATES)
+        return patterns
+
+    def _source_files(self) -> list[Path]:
+        if self._files is None:
+            self._files = list(self._walk())
+        return self._files
+
+    def _walk(self):
+        for dir_path, dir_names, file_names in os.walk(self._source_dir):
+            dir_names[:] = [d for d in dir_names
+                            if d not in self._EXCLUDED_DIRS and not d.startswith(".")]
+            for file_name in file_names:
+                path = Path(dir_path) / file_name
+                if path.suffix in self._SCANNABLE_EXTENSIONS:
+                    yield path
+
+
+# ==========================================================================
+# Risk scoring
+# ==========================================================================
+
+_MATURITY_WEIGHT = {"active": 1.5, "proof-of-concept": 1.2, "none-known": 1.0}
+
+# UNKNOWN is weighted exactly like REACHABLE: an inconclusive scan must not be
+# able to bury a finding the way a confirmed "not used" legitimately can.
+_REACHABILITY_WEIGHT = {
+    Reachability.REACHABLE: 1.0,
+    Reachability.UNKNOWN: 1.0,
+    Reachability.NOT_FOUND: 0.4,
+}
+
+_VERSION_WEIGHT = {
+    VersionStatus.VULNERABLE: 1.0,
+    VersionStatus.UNKNOWN: 0.8,
+}
+
+
+def compute_risk(
+    vulnerability: Vulnerability,
+    dependency: Dependency,
+    reachability: Reachability,
+    version_status: VersionStatus,
+) -> tuple[float, Severity]:
+    """
+    Combines base severity with real-world context. A CRITICAL CVE in an
+    unreachable transitive dependency scores lower than a MEDIUM one in
+    directly-called, actively-exploited code — matching how a security
+    engineer would actually triage a backlog.
+    """
+    base = vulnerability.severity.value
+
+    if dependency.is_dev:
+        context_factor = 0.7  # dev-only deps are never deployed
+    elif dependency.is_direct:
+        context_factor = 1.2
+    else:
+        context_factor = 1.0
+
+    score = (
+        base
+        * _REACHABILITY_WEIGHT[reachability]
+        * context_factor
+        * _MATURITY_WEIGHT.get(vulnerability.exploit_maturity, 1.0)
+        * _VERSION_WEIGHT[version_status]
+    )
+
+    if score >= 4.5:
+        level = Severity.CRITICAL
+    elif score >= 3.0:
+        level = Severity.HIGH
+    elif score >= 1.5:
+        level = Severity.MEDIUM
+    else:
+        level = Severity.LOW
+    return score, level
+
+
+# ==========================================================================
+# AI remediation advisor — with a deterministic fallback so the pipeline
+# never depends on an external API being available.
+# ==========================================================================
+
+class RemediationAdvisor(ABC):
+    @abstractmethod
+    def explain(
+        self,
+        dependency: Dependency,
+        vulnerability: Vulnerability,
+        reachability: Reachability,
+        version_status: VersionStatus,
+    ) -> str:
+        ...
+
+
+class TemplateRemediationAdvisor(RemediationAdvisor):
+    """Deterministic, offline fallback — always available, no external dependency."""
+
+    _REACH_NOTE = {
+        Reachability.REACHABLE:
+            "This code path appears reachable in your source, so treat this as live risk.",
+        Reachability.NOT_FOUND:
+            "No reference to this package was found in your source; risk is likely theoretical "
+            "but should still be patched before it becomes reachable.",
+        Reachability.UNKNOWN:
+            "Reachability could not be determined — no source directory was scanned, or it held "
+            "no scannable files — so this is scored as if it were reachable.",
+    }
+
+    def explain(
+        self,
+        dependency: Dependency,
+        vulnerability: Vulnerability,
+        reachability: Reachability,
+        version_status: VersionStatus,
+    ) -> str:
+        if version_status is VersionStatus.UNKNOWN:
+            version_note = (
+                f"The declared spec '{dependency.version}' could not be compared against the "
+                f"fixed version {vulnerability.fixed_version}; resolve the installed version "
+                f"from your lockfile and confirm manually."
+            )
+        else:
+            version_note = (
+                f"Upgrade {dependency.name} from {dependency.version} to "
+                f"{vulnerability.fixed_version} or later."
+            )
+        return f"{vulnerability.summary} {version_note} {self._REACH_NOTE[reachability]}"
+
+
+class ClaudeRemediationAdvisor(RemediationAdvisor):
+    """
+    Calls the Anthropic API to produce a developer-friendly explanation and fix plan.
+    Falls back to TemplateRemediationAdvisor on any failure — missing API key,
+    network error, rate limit, or malformed response — so a flaky AI call never
+    breaks a CI/CD security gate.
+    """
+
+    def __init__(self, model: Optional[str] = None) -> None:
+        self._model = model or os.environ.get("ANTHROPIC_MODEL", "claude-sonnet-5")
+        self._fallback = TemplateRemediationAdvisor()
+        self._client = self._build_client()
+
+    def _build_client(self):
+        api_key = os.environ.get("ANTHROPIC_API_KEY")
+        if not api_key:
+            print("warning: ANTHROPIC_API_KEY not set; AI remediation disabled, using templates",
+                  file=sys.stderr)
+            return None
+        try:
+            import anthropic  # imported lazily so the module is optional
+            return anthropic.Anthropic(api_key=api_key)
+        except ImportError:
+            print("warning: 'anthropic' package not installed; using templates", file=sys.stderr)
+            return None
+
+    def explain(
+        self,
+        dependency: Dependency,
+        vulnerability: Vulnerability,
+        reachability: Reachability,
+        version_status: VersionStatus,
+    ) -> str:
+        if self._client is None:
+            return self._fallback.explain(dependency, vulnerability, reachability, version_status)
+
+        prompt = (
+            f"A dependency scan found {vulnerability.cve_id} ({vulnerability.severity.name}) in "
+            f"'{dependency.name}' version {dependency.version}. Summary: {vulnerability.summary} "
+            f"Fixed in version {vulnerability.fixed_version}. "
+            f"Reachability in source: {reachability.value}. "
+            f"Version comparison: {version_status.value}. "
+            f"Dev-only dependency: {dependency.is_dev}. "
+            "In 2-3 sentences, explain the real-world risk to a developer and the exact fix to apply."
+        )
+        try:
+            response = self._client.messages.create(
+                model=self._model,
+                max_tokens=300,
+                messages=[{"role": "user", "content": prompt}],
+            )
+            text_blocks = [block.text for block in response.content if block.type == "text"]
+            explanation = " ".join(text_blocks).strip()
+            if not explanation:
+                raise ValueError("Empty response from AI model")
+            return explanation
+        except Exception as error:  # network, auth, rate-limit, or schema errors — never crash the scan
+            print(f"warning: AI remediation call failed ({error.__class__.__name__}: {error}); "
+                  f"using template fallback for {vulnerability.cve_id}", file=sys.stderr)
+            return self._fallback.explain(dependency, vulnerability, reachability, version_status)
+
+
+# ==========================================================================
+# Orchestration
+# ==========================================================================
+
+class SnykAIExtension:
+    def __init__(
+        self,
+        vulnerability_db: VulnerabilityDatabase,
+        advisor: RemediationAdvisor,
+        source_dir: Optional[Path],
+    ) -> None:
+        self._db = vulnerability_db
+        self._advisor = advisor
+        self._reachability = ReachabilityAnalyzer(source_dir)
+        self._parsers: list[DependencyParser] = [PackageJsonParser(), PythonRequirementsParser()]
+
+    def analyze(self, manifest_path: Path) -> list[Finding]:
+        if not manifest_path.exists():
+            raise FileNotFoundError(f"Manifest file not found: {manifest_path}")
+
+        parser = resolve_parser(manifest_path, self._parsers)
+        dependencies = parser.parse(manifest_path)
+
+        candidates = [
+            (dependency, vulnerability)
+            for dependency in dependencies
+            for vulnerability in self._db.lookup(dependency.name)
+        ]
+        # One walk of the source tree for the whole run, not one per finding.
+        self._reachability.prescan({dependency.name for dependency, _ in candidates})
+
+        findings: list[Finding] = []
+        for dependency, vulnerability in candidates:
+            findings.extend(self._evaluate(dependency, vulnerability))
+
+        return sorted(findings, key=lambda f: f.risk_score, reverse=True)
+
+    def _evaluate(self, dependency: Dependency, vulnerability: Vulnerability) -> list[Finding]:
+        version_status = classify_version(dependency.version, vulnerability.affected_below)
+        if version_status is VersionStatus.NOT_VULNERABLE:
+            return []
+
+        reachability = self._reachability.reachability_of(dependency.name)
+        score, level = compute_risk(vulnerability, dependency, reachability, version_status)
+        remediation = self._advisor.explain(dependency, vulnerability, reachability, version_status)
+
+        return [Finding(dependency, vulnerability, reachability, version_status, score, level, remediation)]
+
+
+# ==========================================================================
+# CLI
+# ==========================================================================
+
+def parse_args(argv: list[str]) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description="AI-powered contextual vulnerability triage.",
+        epilog="Run with --selftest (and no other flags) to execute the bundled test suite.",
+    )
+    parser.add_argument("--manifest", type=Path, required=True, help="Path to package.json or requirements.txt")
+    parser.add_argument("--source", type=Path, default=None, help="Source directory for reachability analysis")
+    parser.add_argument("--db", type=Path, default=None, help="Optional custom vulnerability DB (JSON)")
+    parser.add_argument("--no-ai", action="store_true", help="Disable AI calls, use offline templates only")
+    parser.add_argument("--fail-on", choices=["low", "medium", "high", "critical"], default="high",
+                        help="Lowest risk level that exits 1 (default: high; lesser findings exit 3)")
+    return parser.parse_args(argv)
+
+
+def main(argv: list[str]) -> int:
+    args = parse_args(argv)
+    fail_on = Severity.from_str(args.fail_on)
+
+    advisor: RemediationAdvisor = (
+        TemplateRemediationAdvisor() if args.no_ai else ClaudeRemediationAdvisor()
+    )
+    extension = SnykAIExtension(
+        vulnerability_db=LocalVulnerabilityDatabase(args.db),
+        advisor=advisor,
+        source_dir=args.source,
+    )
+
+    try:
+        findings = extension.analyze(args.manifest)
+    except (FileNotFoundError, ValueError) as error:
+        print(f"error: {error}", file=sys.stderr)
+        return 2
+
+    if not findings:
+        print("No known vulnerabilities detected in current dependencies.")
+        return 0
+
+    # Report text is deliberately ASCII-only: a default Windows console is
+    # cp1252, and printing an arrow or em-dash there raises UnicodeEncodeError
+    # and takes down the whole gate at output time.
+    print(f"Found {len(findings)} vulnerability finding(s), ranked by contextual risk:\n")
+    for finding in findings:
+        data = finding.to_dict()
+        print(f"[{data['risk_level']}] {data['package']}@{data['installed_version']} "
+              f"- {data['cve']} (score: {data['risk_score']}, "
+              f"reachability: {data['reachability']}, version: {data['version_status']})")
+        print(f"    -> {data['remediation']}\n")
+
+    highest = max(finding.risk_level.value for finding in findings)
+    if highest >= fail_on.value:
+        print(f"gate: at least one finding at or above {fail_on.name}", file=sys.stderr)
+        return 1
+    print(f"gate: all findings below {fail_on.name}", file=sys.stderr)
+    return 3
+
+
+# ==========================================================================
+# ==========================================================================
+#
+#   T E S T   S U I T E
+#
+#   Everything below this line is tests. Run them with:
+#       python snyk_ai_extension_all_in_one.py --selftest
+#
+#   Kept in the same module so this file stays a single pasteable artifact.
+#   In a normal repo these would live in test_snyk_ai_extension.py.
+#
+# ==========================================================================
+# ==========================================================================
+
+import io
+import tempfile
+import unittest
+from contextlib import redirect_stdout, redirect_stderr
+from unittest import mock
+
+
+
+def write_tree(root: Path, files: dict[str, str]) -> Path:
+    for relative, content in files.items():
+        path = root / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(content, encoding="utf-8")
+    return root
+
+
+def vuln(severity: str = "HIGH", maturity: str = "active") -> Vulnerability:
+    return Vulnerability(
+        cve_id="CVE-0000-0000",
+        package="pkg",
+        affected_below="2.0.0",
+        severity=Severity.from_str(severity),
+        exploit_maturity=maturity,
+        summary="Test vulnerability.",
+        fixed_version="2.0.0",
+    )
+
+
+# ==========================================================================
+# Version handling
+# ==========================================================================
+
+class TestVersionParsing(unittest.TestCase):
+    def test_plain_dotted_version(self):
+        self.assertEqual(parse_version("4.17.15"), (4, 17, 15))
+
+    def test_leading_v_is_accepted(self):
+        self.assertEqual(parse_version("v4.17.15"), (4, 17, 15))
+
+    def test_prerelease_suffix_is_ignored(self):
+        self.assertEqual(parse_version("1.2.3-beta.1"), (1, 2, 3))
+
+    def test_surrounding_whitespace(self):
+        self.assertEqual(parse_version("  2.31.0  "), (2, 31, 0))
+
+    def test_unparseable_raises(self):
+        for spec in ("*", "latest", "", "git+https://example.com/a.git"):
+            with self.subTest(spec=spec), self.assertRaises(ValueError):
+                parse_version(spec)
+
+    def test_shorter_tuple_is_zero_padded(self):
+        self.assertTrue(is_version_less_than("4.17", "4.17.21"))
+        self.assertFalse(is_version_less_than("4.17.21", "4.17"))
+        self.assertFalse(is_version_less_than("2.0", "2.0.0"))
+
+
+class TestClassifyVersion(unittest.TestCase):
+    def test_below_threshold_is_vulnerable(self):
+        self.assertIs(classify_version("4.17.15", "4.17.21"), VersionStatus.VULNERABLE)
+
+    def test_at_or_above_threshold_is_clean(self):
+        self.assertIs(classify_version("4.17.21", "4.17.21"), VersionStatus.NOT_VULNERABLE)
+        self.assertIs(classify_version("5.0.0", "4.17.21"), VersionStatus.NOT_VULNERABLE)
+
+    def test_uncomparable_specs_become_unknown_not_dropped(self):
+        for spec in ("*", "latest", "workspace:*", "git+ssh://git@host/x.git"):
+            with self.subTest(spec=spec):
+                self.assertIs(classify_version(spec, "4.17.21"), VersionStatus.UNKNOWN)
+
+
+class TestSeverity(unittest.TestCase):
+    def test_case_insensitive(self):
+        self.assertIs(Severity.from_str("critical"), Severity.CRITICAL)
+
+    def test_unknown_raises_value_error(self):
+        with self.assertRaises(ValueError):
+            Severity.from_str("catastrophic")
+
+
+# ==========================================================================
+# Manifest parsing
+# ==========================================================================
+
+class TestPackageJsonParser(unittest.TestCase):
+    def parse(self, manifest: dict) -> list[Dependency]:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "package.json"
+            path.write_text(json.dumps(manifest), encoding="utf-8")
+            return PackageJsonParser().parse(path)
+
+    def test_dev_dependencies_are_flagged_as_dev(self):
+        deps = self.parse({
+            "dependencies": {"lodash": "^4.17.15"},
+            "devDependencies": {"jest": "~29.0.0"},
+        })
+        by_name = {d.name: d for d in deps}
+        self.assertFalse(by_name["lodash"].is_dev)
+        self.assertTrue(by_name["jest"].is_dev)
+        self.assertTrue(all(d.is_direct for d in deps))
+
+    def test_range_prefixes_are_stripped(self):
+        deps = self.parse({"dependencies": {"a": "^1.2.3", "b": "~4.5", "c": ">=2.0.0"}})
+        self.assertEqual({d.name: d.version for d in deps},
+                         {"a": "1.2.3", "b": "4.5", "c": "2.0.0"})
+
+    def test_invalid_json_raises_value_error(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "package.json"
+            path.write_text("{not json", encoding="utf-8")
+            with self.assertRaises(ValueError):
+                PackageJsonParser().parse(path)
+
+
+class TestRequirementsParser(unittest.TestCase):
+    def test_pinned_lines_only(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "requirements.txt"
+            path.write_text("# comment\n\nflask==2.0.1\nrequests>=2.0\n", encoding="utf-8")
+            deps = PythonRequirementsParser().parse(path)
+        self.assertEqual([(d.name, d.version) for d in deps], [("flask", "2.0.1")])
+
+    def test_resolver_rejects_unknown_manifest(self):
+        parsers = [PackageJsonParser(), PythonRequirementsParser()]
+        with self.assertRaises(ValueError):
+            resolve_parser(Path("Cargo.toml"), parsers)
+
+
+# ==========================================================================
+# Reachability
+# ==========================================================================
+
+class TestReachability(unittest.TestCase):
+    def analyzer_for(self, files: dict[str, str]) -> tuple[ReachabilityAnalyzer, tempfile.TemporaryDirectory]:
+        tmp = tempfile.TemporaryDirectory()
+        write_tree(Path(tmp.name), files)
+        return ReachabilityAnalyzer(Path(tmp.name)), tmp
+
+    def test_node_modules_is_pruned(self):
+        analyzer, tmp = self.analyzer_for({
+            "src/app.js": "const x = 1;\n",
+            "node_modules/other-pkg/index.js": 'const _ = require("lodash");\n',
+        })
+        with tmp:
+            self.assertIs(analyzer.reachability_of("lodash"), Reachability.NOT_FOUND)
+
+    def test_dot_directories_are_pruned(self):
+        analyzer, tmp = self.analyzer_for({
+            "app.py": "print(1)\n",
+            ".venv/lib/site.py": "import flask\n",
+        })
+        with tmp:
+            self.assertIs(analyzer.reachability_of("flask"), Reachability.NOT_FOUND)
+
+    def test_build_output_is_pruned(self):
+        analyzer, tmp = self.analyzer_for({
+            "src/a.ts": "export const a = 1;\n",
+            "dist/bundle.js": 'require("lodash");\n',
+        })
+        with tmp:
+            self.assertIs(analyzer.reachability_of("lodash"), Reachability.NOT_FOUND)
+
+    def test_direct_import_is_reachable(self):
+        analyzer, tmp = self.analyzer_for({"src/app.py": "import flask\n"})
+        with tmp:
+            self.assertIs(analyzer.reachability_of("flask"), Reachability.REACHABLE)
+
+    def test_alias_table_resolves_differing_import_name(self):
+        analyzer, tmp = self.analyzer_for({"src/scrape.py": "from bs4 import BeautifulSoup\n"})
+        with tmp:
+            self.assertIs(analyzer.reachability_of("beautifulsoup4"), Reachability.REACHABLE)
+
+    def test_pypi_dash_to_underscore_normalisation(self):
+        analyzer, tmp = self.analyzer_for({"src/app.py": "import my_lib\n"})
+        with tmp:
+            self.assertIs(analyzer.reachability_of("my-lib"), Reachability.REACHABLE)
+
+    def test_scoped_npm_package_matches_full_and_bare_name(self):
+        analyzer, tmp = self.analyzer_for({"src/a.ts": "import x from '@scope/thing';\n"})
+        with tmp:
+            self.assertIs(analyzer.reachability_of("@scope/thing"), Reachability.REACHABLE)
+
+        analyzer2, tmp2 = self.analyzer_for({"src/a.ts": "import x from 'thing';\n"})
+        with tmp2:
+            self.assertIs(analyzer2.reachability_of("@scope/thing"), Reachability.REACHABLE)
+
+    def test_subpath_import_matches_parent_package(self):
+        analyzer, tmp = self.analyzer_for({"src/a.js": 'const m = require("lodash/merge");\n'})
+        with tmp:
+            self.assertIs(analyzer.reachability_of("lodash"), Reachability.REACHABLE)
+
+    def test_dynamic_import_matches(self):
+        analyzer, tmp = self.analyzer_for({"src/a.mjs": 'const m = await import("lodash");\n'})
+        with tmp:
+            self.assertIs(analyzer.reachability_of("lodash"), Reachability.REACHABLE)
+
+    def test_longer_name_with_same_prefix_does_not_match(self):
+        analyzer, tmp = self.analyzer_for({"src/app.py": "import lodash_extra\n"})
+        with tmp:
+            self.assertIs(analyzer.reachability_of("lodash"), Reachability.NOT_FOUND)
+
+    def test_no_source_dir_is_unknown_not_reachable(self):
+        self.assertIs(ReachabilityAnalyzer(None).reachability_of("lodash"), Reachability.UNKNOWN)
+
+    def test_tree_without_scannable_files_is_unknown(self):
+        analyzer, tmp = self.analyzer_for({"README.md": "# docs\n", "data.csv": "a,b\n"})
+        with tmp:
+            self.assertIs(analyzer.reachability_of("lodash"), Reachability.UNKNOWN)
+
+    def test_tree_is_walked_once_per_run(self):
+        analyzer, tmp = self.analyzer_for({"src/app.py": "import flask\n"})
+        with tmp, mock.patch.object(
+            ReachabilityAnalyzer, "_walk", autospec=True, side_effect=ReachabilityAnalyzer._walk
+        ) as spy:
+            analyzer.prescan(["flask", "lodash"])
+            analyzer.reachability_of("requests")   # not prescanned — must reuse the file list
+            analyzer.reachability_of("flask")      # cached
+            self.assertEqual(spy.call_count, 1)
+
+# ==========================================================================
+# Risk scoring
+# ==========================================================================
+
+class TestComputeRisk(unittest.TestCase):
+    def score(self, dependency, reachability, version_status=VersionStatus.VULNERABLE,
+              severity="HIGH", maturity="active") -> float:
+        return compute_risk(vuln(severity, maturity), dependency, reachability, version_status)[0]
+
+    def test_dev_dependency_is_discounted_below_runtime(self):
+        runtime = Dependency("pkg", "1.0.0", is_direct=True, is_dev=False)
+        dev = Dependency("pkg", "1.0.0", is_direct=True, is_dev=True)
+        self.assertAlmostEqual(self.score(runtime, Reachability.REACHABLE), 5.4)
+        self.assertAlmostEqual(self.score(dev, Reachability.REACHABLE), 3.15)
+
+    def test_transitive_sits_between_dev_and_direct(self):
+        transitive = Dependency("pkg", "1.0.0", is_direct=False, is_dev=False)
+        self.assertAlmostEqual(self.score(transitive, Reachability.REACHABLE), 4.5)
+
+    def test_unknown_reachability_is_not_discounted(self):
+        dependency = Dependency("pkg", "1.0.0", is_direct=True)
+        self.assertEqual(
+            self.score(dependency, Reachability.UNKNOWN),
+            self.score(dependency, Reachability.REACHABLE),
+        )
+
+    def test_confirmed_unreachable_is_discounted(self):
+        dependency = Dependency("pkg", "1.0.0", is_direct=True)
+        self.assertAlmostEqual(self.score(dependency, Reachability.NOT_FOUND), 5.4 * 0.4)
+
+    def test_uncomparable_version_is_mildly_discounted(self):
+        dependency = Dependency("pkg", "1.0.0", is_direct=True)
+        self.assertAlmostEqual(
+            self.score(dependency, Reachability.REACHABLE, VersionStatus.UNKNOWN), 5.4 * 0.8
+        )
+
+    def test_reachable_medium_outranks_unreachable_critical(self):
+        direct = Dependency("pkg", "1.0.0", is_direct=True)
+        reachable_medium = self.score(direct, Reachability.REACHABLE, severity="MEDIUM")
+        unreachable_critical = self.score(
+            direct, Reachability.NOT_FOUND, severity="CRITICAL", maturity="none-known"
+        )
+        self.assertGreater(reachable_medium, unreachable_critical)
+
+    def test_unknown_maturity_defaults_to_neutral_weight(self):
+        dependency = Dependency("pkg", "1.0.0", is_direct=True)
+        self.assertAlmostEqual(
+            self.score(dependency, Reachability.REACHABLE, maturity="novel"), 3 * 1.2
+        )
+
+    def level(self, dependency, reachability, version_status=VersionStatus.VULNERABLE,
+              severity="HIGH", maturity="active") -> Severity:
+        return compute_risk(vuln(severity, maturity), dependency, reachability, version_status)[1]
+
+    def test_neutral_context_preserves_base_severity(self):
+        """Transitive + reachable + no known exploit is the 1.0-multiplier baseline."""
+        transitive = Dependency("pkg", "1.0.0", is_direct=False)
+        for severity, expected in (("LOW", Severity.LOW), ("MEDIUM", Severity.MEDIUM),
+                                   ("HIGH", Severity.HIGH)):
+            with self.subTest(severity=severity):
+                self.assertIs(
+                    self.level(transitive, Reachability.REACHABLE,
+                               severity=severity, maturity="none-known"),
+                    expected,
+                )
+
+    def test_bare_critical_needs_context_to_stay_critical(self):
+        """
+        A CRITICAL with nothing else going for it scores 4.0 and lands at HIGH;
+        it takes a direct dependency or a known exploit to clear the 4.5 cut.
+        This demotion is the point of contextual triage, not a rounding artefact.
+        """
+        transitive = Dependency("pkg", "1.0.0", is_direct=False)
+        direct = Dependency("pkg", "1.0.0", is_direct=True)
+        self.assertIs(
+            self.level(transitive, Reachability.REACHABLE, severity="CRITICAL", maturity="none-known"),
+            Severity.HIGH,
+        )
+        self.assertIs(
+            self.level(direct, Reachability.REACHABLE, severity="CRITICAL", maturity="none-known"),
+            Severity.CRITICAL,
+        )
+
+    def test_unreachable_dev_dependency_bottoms_out_at_low(self):
+        dev = Dependency("pkg", "1.0.0", is_direct=True, is_dev=True)
+        self.assertIs(
+            self.level(dev, Reachability.NOT_FOUND, severity="MEDIUM", maturity="none-known"),
+            Severity.LOW,
+        )
+
+
+# ==========================================================================
+# Advisor
+# ==========================================================================
+
+class TestTemplateAdvisor(unittest.TestCase):
+    def setUp(self):
+        self.advisor = TemplateRemediationAdvisor()
+        self.dependency = Dependency("lodash", "4.17.15", is_direct=True)
+        self.vulnerability = vuln()
+
+    def test_reachable_wording(self):
+        text = self.advisor.explain(self.dependency, self.vulnerability,
+                                    Reachability.REACHABLE, VersionStatus.VULNERABLE)
+        self.assertIn("reachable in your source", text)
+        self.assertIn("Upgrade lodash from 4.17.15 to 2.0.0", text)
+
+    def test_unknown_reachability_wording_is_distinct(self):
+        text = self.advisor.explain(self.dependency, self.vulnerability,
+                                    Reachability.UNKNOWN, VersionStatus.VULNERABLE)
+        self.assertIn("could not be determined", text)
+
+    def test_unknown_version_tells_user_to_check_lockfile(self):
+        dependency = Dependency("lodash", "*", is_direct=True)
+        text = self.advisor.explain(dependency, self.vulnerability,
+                                    Reachability.REACHABLE, VersionStatus.UNKNOWN)
+        self.assertIn("lockfile", text)
+        self.assertNotIn("Upgrade lodash from *", text)
+
+
+# ==========================================================================
+# End-to-end orchestration
+# ==========================================================================
+
+class TestSnykAIExtension(unittest.TestCase):
+    def run_scan(self, manifest: dict, files: dict[str, str] | None = None):
+        tmp = tempfile.TemporaryDirectory()
+        root = Path(tmp.name)
+        (root / "package.json").write_text(json.dumps(manifest), encoding="utf-8")
+        write_tree(root, files or {})
+        extension = SnykAIExtension(
+            vulnerability_db=LocalVulnerabilityDatabase(),
+            advisor=TemplateRemediationAdvisor(),
+            source_dir=root,
+        )
+        try:
+            return extension.analyze(root / "package.json")
+        finally:
+            tmp.cleanup()
+
+    def test_patched_dependency_produces_no_finding(self):
+        self.assertEqual(self.run_scan({"dependencies": {"lodash": "^4.17.21"}}), [])
+
+    def test_vulnerable_and_reachable(self):
+        findings = self.run_scan(
+            {"dependencies": {"lodash": "^4.17.15"}},
+            {"src/app.js": 'const _ = require("lodash");\n'},
+        )
+        self.assertEqual(len(findings), 1)
+        self.assertIs(findings[0].reachability, Reachability.REACHABLE)
+        self.assertIs(findings[0].version_status, VersionStatus.VULNERABLE)
+        self.assertIs(findings[0].risk_level, Severity.CRITICAL)
+
+    def test_wildcard_spec_still_reported(self):
+        findings = self.run_scan(
+            {"dependencies": {"lodash": "*"}},
+            {"src/app.js": 'const _ = require("lodash");\n'},
+        )
+        self.assertEqual(len(findings), 1)
+        self.assertIs(findings[0].version_status, VersionStatus.UNKNOWN)
+
+    def test_findings_sorted_by_descending_score(self):
+        findings = self.run_scan(
+            {"dependencies": {"lodash": "4.17.15", "requests": "2.30.0", "flask": "2.0.0"}},
+            {"src/app.js": 'const _ = require("lodash");\n'},
+        )
+        scores = [f.risk_score for f in findings]
+        self.assertEqual(scores, sorted(scores, reverse=True))
+        self.assertEqual(findings[0].dependency.name, "lodash")
+
+    def test_missing_manifest_raises(self):
+        extension = SnykAIExtension(LocalVulnerabilityDatabase(), TemplateRemediationAdvisor(), None)
+        with self.assertRaises(FileNotFoundError):
+            extension.analyze(Path("does-not-exist/package.json"))
+
+    def test_to_dict_shape(self):
+        findings = self.run_scan(
+            {"dependencies": {"lodash": "4.17.15"}},
+            {"src/app.js": 'require("lodash");\n'},
+        )
+        self.assertEqual(
+            set(findings[0].to_dict()),
+            {"package", "installed_version", "cve", "reachability",
+             "version_status", "risk_score", "risk_level", "remediation"},
+        )
+
+
+class TestByteOrderMarkTolerance(unittest.TestCase):
+    """Windows editors and PowerShell emit UTF-8 BOMs; none of this may break on one."""
+
+    def test_bom_in_package_json_parses(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "package.json"
+            path.write_text(json.dumps({"dependencies": {"lodash": "4.17.15"}}),
+                            encoding="utf-8-sig")
+            deps = PackageJsonParser().parse(path)
+        self.assertEqual([(d.name, d.version) for d in deps], [("lodash", "4.17.15")])
+
+    def test_bom_in_requirements_parses(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "requirements.txt"
+            path.write_text("flask==2.0.1\n", encoding="utf-8-sig")
+            deps = PythonRequirementsParser().parse(path)
+        self.assertEqual([(d.name, d.version) for d in deps], [("flask", "2.0.1")])
+
+    def test_bom_before_first_line_import_still_matches(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            source = Path(tmp) / "app.py"
+            source.write_text("import flask\n", encoding="utf-8-sig")
+            analyzer = ReachabilityAnalyzer(Path(tmp))
+            self.assertIs(analyzer.reachability_of("flask"), Reachability.REACHABLE)
+
+    def test_bom_in_custom_database_loads(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db_path = Path(tmp) / "db.json"
+            db_path.write_text(json.dumps({"lodash": [{
+                "cve_id": "CVE-1", "affected_below": "2.0.0", "severity": "HIGH",
+                "exploit_maturity": "active", "summary": "s", "fixed_version": "2.0.0",
+            }]}), encoding="utf-8-sig")
+            with redirect_stderr(io.StringIO()):
+                found = LocalVulnerabilityDatabase(db_path).lookup("lodash")
+        self.assertEqual([v.cve_id for v in found], ["CVE-1"])
+
+
+class TestMalformedDatabaseEntries(unittest.TestCase):
+    def test_bad_entry_is_skipped_without_crashing(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db_path = Path(tmp) / "db.json"
+            db_path.write_text(json.dumps({
+                "lodash": [
+                    {"cve_id": "X", "severity": "HIGH"},  # missing required keys
+                    {"cve_id": "CVE-1", "affected_below": "2.0.0", "severity": "NONSENSE",
+                     "exploit_maturity": "active", "summary": "s", "fixed_version": "2.0.0"},
+                    {"cve_id": "CVE-2", "affected_below": "2.0.0", "severity": "HIGH",
+                     "exploit_maturity": "active", "summary": "s", "fixed_version": "2.0.0"},
+                ]
+            }), encoding="utf-8")
+            with redirect_stderr(io.StringIO()):
+                found = LocalVulnerabilityDatabase(db_path).lookup("lodash")
+        self.assertEqual([v.cve_id for v in found], ["CVE-2"])
+
+    def test_unreadable_db_falls_back_to_sample(self):
+        with redirect_stderr(io.StringIO()):
+            database = LocalVulnerabilityDatabase(Path("no-such-db.json"))
+        self.assertTrue(database.lookup("lodash"))
+
+
+# ==========================================================================
+# CLI gate
+# ==========================================================================
+
+class TestCliExitCodes(unittest.TestCase):
+    def invoke(self, argv: list[str]) -> tuple[int, str]:
+        out, err = io.StringIO(), io.StringIO()
+        with redirect_stdout(out), redirect_stderr(err):
+            code = main(argv)
+        return code, out.getvalue()
+
+    def test_clean_project_exits_zero(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            manifest = Path(tmp) / "package.json"
+            manifest.write_text(json.dumps({"dependencies": {"lodash": "4.17.21"}}), encoding="utf-8")
+            code, output = self.invoke(["--manifest", str(manifest), "--source", tmp, "--no-ai"])
+        self.assertEqual(code, 0)
+        self.assertIn("No known vulnerabilities", output)
+
+    def test_severe_finding_exits_one(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            write_tree(Path(tmp), {"src/app.js": 'require("lodash");\n'})
+            manifest = Path(tmp) / "package.json"
+            manifest.write_text(json.dumps({"dependencies": {"lodash": "^4.17.15"}}), encoding="utf-8")
+            code, output = self.invoke(["--manifest", str(manifest), "--source", tmp, "--no-ai"])
+        self.assertEqual(code, 1)
+        self.assertIn("CRITICAL", output)
+
+    def test_findings_below_threshold_exit_three_not_zero(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            write_tree(Path(tmp), {"src/app.py": "print('no imports here')\n"})
+            manifest = Path(tmp) / "requirements.txt"
+            manifest.write_text("requests==2.30.0\n", encoding="utf-8")
+            code, output = self.invoke(
+                ["--manifest", str(manifest), "--source", tmp, "--no-ai", "--fail-on", "medium"]
+            )
+        self.assertEqual(code, 3)
+        self.assertIn("requests", output)
+
+    def test_fail_on_low_catches_everything(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            write_tree(Path(tmp), {"src/app.py": "print('no imports here')\n"})
+            manifest = Path(tmp) / "requirements.txt"
+            manifest.write_text("requests==2.30.0\n", encoding="utf-8")
+            code, _ = self.invoke(
+                ["--manifest", str(manifest), "--source", tmp, "--no-ai", "--fail-on", "low"]
+            )
+        self.assertEqual(code, 1)
+
+    def test_report_renders_on_a_cp1252_console(self):
+        """
+        The default Windows console codepage cannot encode arrows or em-dashes;
+        emitting one used to abort the run with UnicodeEncodeError after the
+        analysis had already succeeded.
+        """
+        with tempfile.TemporaryDirectory() as tmp:
+            write_tree(Path(tmp), {"src/app.js": 'require("lodash");\n'})
+            manifest = Path(tmp) / "package.json"
+            manifest.write_text(json.dumps({"dependencies": {"lodash": "4.17.15"}}),
+                                encoding="utf-8")
+            console = io.TextIOWrapper(io.BytesIO(), encoding="cp1252", errors="strict")
+            with redirect_stdout(console), redirect_stderr(io.StringIO()):
+                code = main(["--manifest", str(manifest), "--source", tmp, "--no-ai"])
+                console.flush()
+        self.assertEqual(code, 1)
+
+    def test_missing_manifest_exits_two(self):
+        code, _ = self.invoke(["--manifest", "nope/package.json", "--no-ai"])
+        self.assertEqual(code, 2)
+
+    def test_unsupported_manifest_exits_two(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            manifest = Path(tmp) / "Cargo.toml"
+            manifest.write_text("[package]\n", encoding="utf-8")
+            code, _ = self.invoke(["--manifest", str(manifest), "--no-ai"])
+        self.assertEqual(code, 2)
+
+
+def run_selftest(extra_argv: list[str]) -> int:
+    """Runs the bundled suite. Returns 0 on success, 1 on any failure or error."""
+    loader = unittest.TestLoader()
+    suite = loader.loadTestsFromModule(sys.modules[__name__])
+    runner = unittest.TextTestRunner(verbosity=2 if "-v" in extra_argv else 1)
+    return 0 if runner.run(suite).wasSuccessful() else 1
+
+
+if __name__ == "__main__":
+    # --selftest is intercepted before argparse, which would otherwise demand
+    # the required --manifest flag.
+    if "--selftest" in sys.argv[1:]:
+        sys.exit(run_selftest([a for a in sys.argv[1:] if a != "--selftest"]))
+    sys.exit(main(sys.argv[1:]))
+
 
