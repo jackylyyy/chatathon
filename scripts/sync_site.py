@@ -5,7 +5,7 @@ The site advertises the guardrail, so the two must not drift: a rule added to
 and a site that lists rules the code does not have is worse than no site.
 
 This script reads the real ruleset, the real version, and the real test count,
-and rewrites the single `<script id="conscience-data">` block in `index.html`.
+and rewrites the single `<script id="sentinel-data">` block in `index.html`.
 Nothing else in the page is touched.
 
     python scripts/sync_site.py          # rewrite the block
@@ -41,8 +41,32 @@ FEATURED = (
 sys.path.insert(0, str(REPO_ROOT / "src"))
 
 
+def _parametrize_cases(func: ast.FunctionDef | ast.AsyncFunctionDef) -> int:
+    """How many cases one test function expands into.
+
+    A `@pytest.mark.parametrize` decorator turns one `def` into one case per
+    entry in its argvalues, and stacked decorators multiply. Counting `def`s
+    alone reported 55 where pytest collects 81 - a number on the landing page
+    that disagrees with the one in the terminal is worse than no number.
+    """
+    cases = 1
+    for decorator in func.decorator_list:
+        if not isinstance(decorator, ast.Call):
+            continue
+        target = decorator.func
+        if not (isinstance(target, ast.Attribute) and target.attr == "parametrize"):
+            continue
+        # parametrize(argnames, argvalues) - the second positional argument.
+        if len(decorator.args) < 2:
+            continue
+        argvalues = decorator.args[1]
+        if isinstance(argvalues, (ast.List, ast.Tuple)):
+            cases *= len(argvalues.elts)
+    return cases
+
+
 def count_tests() -> int:
-    """Count test functions without importing or running pytest."""
+    """Count test cases the way pytest would, without importing or running it."""
     total = 0
     for path in sorted(TESTS.glob("test_*.py")):
         tree = ast.parse(path.read_text(encoding="utf-8"))
@@ -50,13 +74,13 @@ def count_tests() -> int:
             if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.name.startswith(
                 "test_"
             ):
-                total += 1
+                total += _parametrize_cases(node)
     return total
 
 
 def build_payload() -> dict:
-    from conscience import __version__
-    from conscience.guard.rules import DEPENDENCY_MANIFESTS, RULES, RULES_BY_ID
+    from sentinel import __version__
+    from sentinel.guard.rules import DEPENDENCY_MANIFESTS, RULES, RULES_BY_ID
 
     rules = []
     for rule in RULES:
@@ -116,9 +140,15 @@ def build_payload() -> dict:
 
 def render_block(payload: dict) -> str:
     body = json.dumps(payload, indent=2, ensure_ascii=False)
+    # This JSON is about to live inside a <script> element, where the HTML
+    # parser looks for `</script` before the JSON parser sees anything. A rule
+    # whose regex contains that sequence would end the block early and take the
+    # rest of the page with it. `<\/` is a no-op escape to JSON and invisible
+    # to the HTML parser, so it costs nothing to always emit it.
+    body = body.replace("</", "<\\/")
     return (
         f"{BEGIN}\n"
-        '<script id="conscience-data" type="application/json">\n'
+        '<script id="sentinel-data" type="application/json">\n'
         f"{body}\n"
         "</script>\n"
         f"{END}"

@@ -1,9 +1,9 @@
 import pytest
 
-from conscience.config import Settings
-from conscience.guard.diff import synthesize_diff
-from conscience.guard.engine import Guard, scan_diff
-from conscience.models import Severity
+from sentinel.config import Settings
+from sentinel.guard.diff import synthesize_diff
+from sentinel.guard.engine import Guard, scan_diff
+from sentinel.models import Severity
 
 
 def rules_hit(source: str, filename: str = "app.py") -> set[str]:

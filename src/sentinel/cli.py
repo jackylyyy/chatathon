@@ -1,9 +1,10 @@
 """Command line entry point.
 
-    conscience explain report.json      # pitch #2 - make a scan readable
-    conscience guard --diff change.diff # pitch #1 - judge a change before it lands
-    conscience rules                    # what the guardrail looks for
-    conscience demo                     # both, on the bundled examples
+    sentinel explain report.json      # make a scan readable
+    sentinel guard --diff change.diff # judge a change before it lands
+    sentinel install-hook             # wire the guardrail into Claude Code
+    sentinel rules                    # what the guardrail looks for
+    sentinel demo                     # both halves, on the bundled examples
 """
 
 from __future__ import annotations
@@ -21,6 +22,7 @@ from .explain.explainer import Explainer
 from .guard.engine import Guard
 from .guard.rules import RULES
 from .ingest import UnknownReportFormat, load_findings
+from .install import install
 from .models import Severity
 
 app = typer.Typer(
@@ -197,6 +199,34 @@ def hook(
     raise typer.Exit(code=hook_main(["--fast"] if fast else []))
 
 
+@app.command("install-hook")
+def install_hook(
+    project: Optional[Path] = typer.Option(
+        None, "--project", help="Project root. Defaults to the working directory."
+    ),
+) -> None:
+    """Register the guardrail as a Claude Code hook in .claude/settings.json.
+
+    Run this once per checkout. It writes the interpreter path for the platform
+    you are on, which a committed settings file cannot do for everyone at once.
+    """
+    root = (project or Path.cwd()).resolve()
+    try:
+        settings_path, command, changed = install(root)
+    except (ValueError, OSError) as exc:
+        render.error(str(exc))
+        raise typer.Exit(code=1)
+
+    render.notice(f"[dim]{command}[/dim]")
+    if changed:
+        render.notice(f"[green]Registered the hook in {settings_path}[/green]")
+        render.notice(
+            "[yellow]Restart Claude Code so it reloads the hook.[/yellow]"
+        )
+    else:
+        render.notice(f"[green]{settings_path} is already up to date.[/green]")
+
+
 @app.command()
 def rules() -> None:
     """List what the guardrail checks for."""
@@ -237,7 +267,7 @@ def demo(
         items = Explainer(settings).explain_all(findings)
     render.render_report(items, source=detected)
 
-    render.console.rule("[bold]2. Agent Conscience - judging a proposed change[/bold]")
+    render.console.rule("[bold]2. Sentinel - judging a proposed change[/bold]")
     with render.status("Reviewing..."):
         verdict = Guard(settings).review_diff(diff.read_text(encoding="utf-8"))
     render.render_verdict(verdict)
@@ -246,7 +276,7 @@ def demo(
 @app.command()
 def version() -> None:
     """Print the version."""
-    render.console.print(f"conscience {__version__}")
+    render.console.print(f"sentinel {__version__}")
 
 
 if __name__ == "__main__":

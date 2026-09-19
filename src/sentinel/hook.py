@@ -1,7 +1,7 @@
 """Claude Code PreToolUse hook.
 
 This is the piece that makes the guardrail real: instead of a human running
-`conscience guard` on a diff, Claude Code calls this automatically every time
+`sentinel guard` on a diff, Claude Code calls this automatically every time
 the agent tries to Write or Edit a file. If the change is dangerous the tool
 call is denied and the explanation is handed back to the agent, which then
 corrects itself.
@@ -214,16 +214,16 @@ def main(argv: list[str] | None = None) -> int:
         raw = sys.stdin.read()
         payload = json.loads(raw) if raw.strip() else {}
     except (json.JSONDecodeError, OSError) as exc:
-        print(f"conscience hook: could not read input ({exc})", file=sys.stderr)
+        print(f"sentinel hook: could not read input ({exc})", file=sys.stderr)
         return 0
 
     try:
         response, log_line = review(payload, fast=fast)
     except Exception as exc:  # fail open, loudly
-        print(f"conscience hook: internal error, allowing ({exc!r})", file=sys.stderr)
+        print(f"sentinel hook: internal error, allowing ({exc!r})", file=sys.stderr)
         return 0
 
-    print(f"conscience hook: {log_line}", file=sys.stderr)
+    print(f"sentinel hook: {log_line}", file=sys.stderr)
     if response is not None:
         print(json.dumps(response))
     return 0

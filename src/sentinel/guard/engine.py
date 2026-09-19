@@ -1,4 +1,4 @@
-"""Pitch #1, Agent Conscience: judge a change before it is applied.
+"""The guardrail: judge a change before it is applied.
 
 Flow: diff -> added lines -> rules -> findings -> explanations -> verdict.
 
@@ -18,7 +18,13 @@ from ..explain.explainer import Explainer
 from ..explain.prioritize import prioritize
 from ..models import Decision, ExplainedFinding, Finding, Severity, Verdict
 from .diff import AddedLine, ParsedDiff, parse_unified_diff, synthesize_diff
-from .rules import DEPENDENCY_MANIFESTS, RULES, is_comment, is_pattern_definition
+from .rules import (
+    DEPENDENCY_MANIFESTS,
+    NEW_DEPENDENCY_RULE_ID,
+    RULES,
+    is_comment,
+    is_pattern_definition,
+)
 
 # Anything at or above this severity blocks the edit.
 DEFAULT_BLOCK_AT = Severity.HIGH
@@ -95,7 +101,7 @@ def _scan_manifests(added: list[AddedLine]) -> list[Finding]:
                 file=line.file,
                 line=line.line,
                 snippet=line.text.strip(),
-                rule_id="dep.new-dependency",
+                rule_id=NEW_DEPENDENCY_RULE_ID,
                 package=package,
                 description=(
                     "A package is being added to the project. Nothing is known to be wrong "

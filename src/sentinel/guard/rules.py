@@ -233,9 +233,13 @@ RULES: list[Rule] = [
         # and it is actually SQL (requires). Checking them separately is what
         # keeps `execute("... WHERE id = %s", (uid,))` - the safe, parameterized
         # form - out of the results.
+        # The f-string branch scans `[^)]*` rather than `[^'\"]*` to reach its
+        # `{`: a SQL f-string almost always quotes the value it interpolates
+        # (`WHERE id = '{uid}'`), and stopping at that inner quote missed the
+        # single most common way this bug is actually written.
         pattern=_r(
             r"(execute|query|raw)\s*\([^)]*"
-            r"(f['\"][^'\"]*\{|\$\{|['\"]\s*\+|['\"]\s*%\s*[\(\w]|\.format\s*\()"
+            r"(f['\"][^)]*\{|\$\{|['\"]\s*\+|['\"]\s*%\s*[\(\w]|\.format\s*\()"
         ),
         requires=_r(r"\b(select|insert|update|delete|drop)\b"),
         cwe=("CWE-89",),
@@ -554,6 +558,11 @@ RULES_BY_ID: dict[str, Rule] = {rule.id: rule for rule in RULES}
 # Manifest files where a new line means a new dependency entering the project.
 # These do not produce a failing verdict on their own - they produce the
 # "should this package be here at all?" question (see README, pitch #4).
+#
+# Shared so the engine that emits these findings and the explainer that has to
+# describe them cannot drift apart on the spelling.
+NEW_DEPENDENCY_RULE_ID = "dep.new-dependency"
+
 DEPENDENCY_MANIFESTS = (
     "package.json",
     "requirements.txt",

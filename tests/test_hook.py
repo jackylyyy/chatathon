@@ -11,8 +11,8 @@ import json
 
 import pytest
 
-from conscience import hook as hookmod
-from conscience.hook import (
+from sentinel import hook as hookmod
+from sentinel.hook import (
     REVIEWABLE_TOOLS,
     NotReviewable,
     build_diff,
@@ -118,7 +118,7 @@ def test_diff_of_an_unchanged_file_is_empty(tmp_path):
 
 
 def test_dangerous_new_code_is_denied(tmp_path, monkeypatch):
-    monkeypatch.setenv("CONSCIENCE_OFFLINE", "1")
+    monkeypatch.setenv("SENTINEL_OFFLINE", "1")
 
     response, log = review(
         payload(cwd=tmp_path, file_path="api/login.py", content=DANGEROUS)
@@ -135,7 +135,7 @@ def test_dangerous_new_code_is_denied(tmp_path, monkeypatch):
 
 
 def test_safe_code_is_allowed_silently(tmp_path, monkeypatch):
-    monkeypatch.setenv("CONSCIENCE_OFFLINE", "1")
+    monkeypatch.setenv("SENTINEL_OFFLINE", "1")
 
     response, log = review(payload(cwd=tmp_path, file_path="util.py", content=SAFE))
 
@@ -145,7 +145,7 @@ def test_safe_code_is_allowed_silently(tmp_path, monkeypatch):
 
 def test_preexisting_vulnerability_is_not_blamed_on_the_agent(tmp_path, monkeypatch):
     """The property that decides whether anyone keeps this hook installed."""
-    monkeypatch.setenv("CONSCIENCE_OFFLINE", "1")
+    monkeypatch.setenv("SENTINEL_OFFLINE", "1")
     legacy = tmp_path / "legacy.py"
     legacy.write_text(
         'password = "supersecret123"\n\ndef helper():\n    return 1\n', encoding="utf-8"
@@ -161,7 +161,7 @@ def test_preexisting_vulnerability_is_not_blamed_on_the_agent(tmp_path, monkeypa
 
 
 def test_an_edit_that_introduces_a_vulnerability_is_denied(tmp_path, monkeypatch):
-    monkeypatch.setenv("CONSCIENCE_OFFLINE", "1")
+    monkeypatch.setenv("SENTINEL_OFFLINE", "1")
     legacy = tmp_path / "legacy.py"
     legacy.write_text("def helper():\n    return 1\n", encoding="utf-8")
 
@@ -176,7 +176,7 @@ def test_an_edit_that_introduces_a_vulnerability_is_denied(tmp_path, monkeypatch
 
 
 def test_a_no_op_edit_is_skipped(tmp_path, monkeypatch):
-    monkeypatch.setenv("CONSCIENCE_OFFLINE", "1")
+    monkeypatch.setenv("SENTINEL_OFFLINE", "1")
     target = tmp_path / "app.py"
     target.write_text(SAFE, encoding="utf-8")
 
@@ -230,7 +230,7 @@ def test_an_internal_crash_still_allows_the_edit(monkeypatch, capsys):
 
 
 def test_main_prints_valid_json_when_denying(monkeypatch, capsys, tmp_path):
-    monkeypatch.setenv("CONSCIENCE_OFFLINE", "1")
+    monkeypatch.setenv("SENTINEL_OFFLINE", "1")
 
     code, captured = _run_main(
         monkeypatch, capsys,

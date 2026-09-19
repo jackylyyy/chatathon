@@ -11,7 +11,7 @@ from pathlib import Path
 
 from typer.testing import CliRunner
 
-from conscience.cli import app
+from sentinel.cli import app
 
 runner = CliRunner()
 EXAMPLES = Path(__file__).resolve().parents[1] / "examples"
@@ -107,7 +107,7 @@ def test_guard_without_an_input_exits_2():
 
 
 def test_rules_lists_every_rule():
-    from conscience.guard.rules import RULES
+    from sentinel.guard.rules import RULES
 
     result = runner.invoke(app, ["rules"])
 

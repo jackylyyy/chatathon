@@ -1,4 +1,4 @@
-from conscience.guard.diff import parse_unified_diff, synthesize_diff
+from sentinel.guard.diff import parse_unified_diff, synthesize_diff
 
 SAMPLE = """\
 diff --git a/app.py b/app.py

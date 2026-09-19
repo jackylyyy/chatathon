@@ -1,7 +1,7 @@
 """The shared core: Finding -> Explanation.
 
-Both front ends go through here. `conscience explain` runs it over a scan
-report; `conscience guard` runs it over findings pulled out of a diff before
+Both front ends go through here. `sentinel explain` runs it over a scan
+report; `sentinel guard` runs it over findings pulled out of a diff before
 the diff is applied. Nothing else in the codebase talks to the model.
 """
 
@@ -95,11 +95,20 @@ class Explainer:
 def offline_explanation(finding: Finding) -> Explanation:
     """A deterministic explanation built from the finding itself.
 
-    Not as good as the model - but it means `conscience` works with no API key,
+    Not as good as the model - but it means `sentinel` works with no API key,
     on a plane, and in CI where the key is not wired up yet. It also gives the
     model-backed path something to be visibly better than.
     """
+    from ..guard.rules import NEW_DEPENDENCY_RULE_ID  # lazy: avoids an import cycle
+
     known = _rule_knowledge(finding.rule_id)
+
+    if finding.rule_id == NEW_DEPENDENCY_RULE_ID and finding.package:
+        # Nothing is *known* to be wrong with a package that just entered the
+        # manifest. Sending it down the vulnerability path would have us tell
+        # the developer their brand-new dependency "carries a known
+        # vulnerability" with "no fixed version" - alarming, and false.
+        return _new_dependency_explanation(finding)
 
     if finding.category == "dependency" and finding.package:
         return _dependency_explanation(finding)
@@ -137,6 +146,45 @@ def offline_explanation(finding: Finding) -> Explanation:
         exploit_likelihood=known.get("exploit_likelihood", _likelihood_from_severity(finding)),
         blast_radius=known.get("blast_radius", _likelihood_from_severity(finding)),
         fix_effort=known.get("fix_effort", "moderate"),
+        generated_by="offline",
+    )
+
+
+def _new_dependency_explanation(finding: Finding) -> Explanation:
+    """A package entering the manifest. A prompt to look, not an accusation."""
+    pkg = finding.package or "the package"
+    where = finding.file or "the manifest"
+
+    return Explanation(
+        headline=f"{pkg} is being added to {where} - worth a look before it lands.",
+        what_it_means=(
+            f"Nothing is known to be wrong with {pkg}. This is the one moment where "
+            "checking it is cheap: once it is installed it runs with the same trust as "
+            "the code you wrote, including whatever its own dependencies pull in."
+        ),
+        attack_scenario=(
+            f"The usual way this goes wrong is a name that is nearly right. An attacker "
+            f"publishes a package one character away from a popular one, waits for a typo "
+            f"- or for an AI assistant to guess a plausible name that does not exist yet - "
+            f"and their install script runs on every machine that pulls it down. Confirm "
+            f"{pkg} is the package you actually meant."
+        ),
+        why_here=(
+            f"{pkg} was added by the change under review, so the decision to trust it is "
+            "being made right now, by whoever approves this diff."
+        ),
+        fix_summary=f"Confirm {pkg} is the package you meant, then keep it pinned.",
+        fix_steps=[
+            f"Check the spelling of {pkg} against the package you intended to install.",
+            "Look at the registry page: recent releases, a real repository, more than one maintainer.",
+            "Check whether it runs an install script, and what its own dependencies are.",
+            "Pin an exact version so the review you just did keeps applying.",
+        ],
+        # Adding a dependency is not itself an exploit, and ranking it as one
+        # would push real findings down the list. Low and honest.
+        exploit_likelihood=2,
+        blast_radius=4,
+        fix_effort="quick",
         generated_by="offline",
     )
 

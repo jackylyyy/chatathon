@@ -17,9 +17,9 @@ DEFAULT_GUARD_MODEL = "claude-opus-5"
 def load_dotenv(start: Path | None = None) -> Path | None:
     """Read the nearest `.env` into the environment. Returns the file used.
 
-    The README tells people to put ANTHROPIC_API_KEY in `.env`, so something
-    has to actually read it - otherwise the key is set, nothing picks it up,
-    and the tool silently serves offline explanations with no hint why.
+    The README tells people to put a key in `.env`, so something has to
+    actually read it - otherwise the key is set, nothing picks it up, and the
+    tool silently serves offline explanations with no hint why.
 
     A real environment variable always wins, so exporting a key still
     overrides the file.
@@ -55,6 +55,22 @@ def load_dotenv(start: Path | None = None) -> Path | None:
 load_dotenv()
 
 
+def sync_api_key() -> None:
+    """Let SENTINEL_API_KEY stand in for ANTHROPIC_API_KEY.
+
+    SENTINEL_API_KEY is the branded name we document; ANTHROPIC_API_KEY is what
+    the SDK actually reads. Copying ours across means the SDK - which has never
+    heard of Sentinel - picks the key up without being handed it explicitly.
+    A real ANTHROPIC_API_KEY always wins.
+    """
+    key = os.environ.get("SENTINEL_API_KEY")
+    if key and not os.environ.get("ANTHROPIC_API_KEY"):
+        os.environ["ANTHROPIC_API_KEY"] = key
+
+
+sync_api_key()
+
+
 @dataclass(frozen=True)
 class Settings:
     model: str = DEFAULT_MODEL
@@ -64,12 +80,12 @@ class Settings:
 
     @classmethod
     def from_env(cls, *, offline: bool | None = None) -> "Settings":
-        env_offline = os.environ.get("CONSCIENCE_OFFLINE", "").lower() in {"1", "true", "yes"}
+        env_offline = os.environ.get("SENTINEL_OFFLINE", "").lower() in {"1", "true", "yes"}
         return cls(
-            model=os.environ.get("CONSCIENCE_MODEL", DEFAULT_MODEL),
-            guard_model=os.environ.get("CONSCIENCE_GUARD_MODEL", DEFAULT_GUARD_MODEL),
+            model=os.environ.get("SENTINEL_MODEL", DEFAULT_MODEL),
+            guard_model=os.environ.get("SENTINEL_GUARD_MODEL", DEFAULT_GUARD_MODEL),
             offline=env_offline if offline is None else offline,
-            max_tokens=int(os.environ.get("CONSCIENCE_MAX_TOKENS", "8000")),
+            max_tokens=int(os.environ.get("SENTINEL_MAX_TOKENS", "8000")),
         )
 
 
@@ -77,6 +93,7 @@ def has_credentials() -> bool:
     """The SDK also accepts an `ant auth login` profile, so an unset key is not
     proof that we can't call the API - but for a demo this check is enough to
     decide whether to try."""
+    sync_api_key()
     return bool(
         os.environ.get("ANTHROPIC_API_KEY")
         or os.environ.get("ANTHROPIC_AUTH_TOKEN")

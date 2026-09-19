@@ -5,10 +5,10 @@ everything failable raises LLMUnavailable and nothing else escapes.
 
 import pytest
 
-from conscience.config import Settings
-from conscience.explain.explainer import Explainer
-from conscience.llm import ClaudeClient, LLMUnavailable
-from conscience.models import Explanation, Finding, Severity
+from sentinel.config import Settings
+from sentinel.explain.explainer import Explainer
+from sentinel.llm import ClaudeClient, LLMUnavailable
+from sentinel.models import Explanation, Finding, Severity
 
 
 def a_finding() -> Finding:
@@ -92,7 +92,7 @@ def test_explanations_are_cached_per_finding(monkeypatch):
         calls.append(1)
         raise AssertionError("should not be re-explained")
 
-    monkeypatch.setattr("conscience.explain.explainer.offline_explanation", tracked)
+    monkeypatch.setattr("sentinel.explain.explainer.offline_explanation", tracked)
     second = explainer.explain(finding)
 
     assert second is first

@@ -1,11 +1,11 @@
-"""conscience - the understand-and-prevent layer for AI-written code.
+"""Sentinel - the understand-and-prevent layer for AI-written code.
 
 Two front ends, one core:
 
     explain   a scan report (Snyk / SARIF) -> plain-English, prioritized briefing
     guard     a proposed diff -> allow / warn / block, plus feedback for the agent
 
-Both go through `conscience.explain.Explainer`, which is the only thing that
+Both go through `sentinel.explain.Explainer`, which is the only thing that
 talks to the model.
 """
 

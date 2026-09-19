@@ -2,11 +2,11 @@ from pathlib import Path
 
 import pytest
 
-from conscience.config import Settings
-from conscience.explain.explainer import Explainer, offline_explanation
-from conscience.explain.prioritize import prioritize, triage_bucket
-from conscience.ingest import UnknownReportFormat, load_findings, parse_findings
-from conscience.models import ExplainedFinding, Finding, Severity
+from sentinel.config import Settings
+from sentinel.explain.explainer import Explainer, offline_explanation
+from sentinel.explain.prioritize import prioritize, triage_bucket
+from sentinel.ingest import UnknownReportFormat, load_findings, parse_findings
+from sentinel.models import ExplainedFinding, Finding, Severity
 
 EXAMPLES = Path(__file__).resolve().parents[1] / "examples"
 
