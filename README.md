@@ -119,7 +119,9 @@ Only added lines are judged, never surrounding context — nobody is served by b
 pytest
 ```
 
-29 tests, no network required.
+44 tests, no network required. `pyright` is clean.
+
+If VS Code shows red squiggles on `import typer` / `rich` / `anthropic`, it hasn't picked up the venv: run **Python: Select Interpreter** and choose `.venv`. [.vscode/settings.json](.vscode/settings.json) points at it by default.
 
 ## Where this goes next
 
