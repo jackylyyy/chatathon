@@ -1,0 +1,83 @@
+{
+  "ok": false,
+  "displayTargetFile": "package.json",
+  "projectName": "checkout-service",
+  "uniqueCount": 5,
+  "vulnerabilities": [
+    {
+      "id": "SNYK-JS-LODASH-1040724",
+      "title": "Prototype Pollution",
+      "severity": "high",
+      "packageName": "lodash",
+      "version": "4.17.11",
+      "fixedIn": ["4.17.20"],
+      "cvssScore": 7.3,
+      "identifiers": {
+        "CVE": ["CVE-2020-8203"],
+        "CWE": ["CWE-1321"]
+      },
+      "description": "## Overview\nAffected versions of this package are vulnerable to Prototype Pollution via the `zipObjectDeep` function, which may allow an attacker to modify the prototype of `Object`, causing the addition or modification of an existing property that will exist on all objects.\n\n## References\n- https://github.com/lodash/lodash/issues/4874",
+      "from": ["checkout-service@1.0.0", "lodash@4.17.11"]
+    },
+    {
+      "id": "SNYK-JS-MINIMIST-2429795",
+      "title": "Prototype Pollution",
+      "severity": "medium",
+      "packageName": "minimist",
+      "version": "1.2.5",
+      "fixedIn": ["1.2.6"],
+      "cvssScore": 5.6,
+      "identifiers": {
+        "CVE": ["CVE-2021-44906"],
+        "CWE": ["CWE-1321"]
+      },
+      "description": "## Overview\nAffected versions of this package are vulnerable to Prototype Pollution via the `setKey()` function.",
+      "from": ["checkout-service@1.0.0", "mkdirp@0.5.1", "minimist@1.2.5"]
+    },
+    {
+      "id": "SNYK-JS-JSONWEBTOKEN-3180022",
+      "title": "Improper Authentication",
+      "severity": "critical",
+      "packageName": "jsonwebtoken",
+      "version": "8.5.1",
+      "fixedIn": ["9.0.0"],
+      "cvssScore": 9.1,
+      "identifiers": {
+        "CVE": ["CVE-2022-23540"],
+        "CWE": ["CWE-287"]
+      },
+      "description": "## Overview\nAffected versions of this package are vulnerable to Improper Authentication. In versions `<=8.5.1`, the library can be misconfigured to accept tokens signed with an insecure algorithm, allowing signature verification to be bypassed.",
+      "from": ["checkout-service@1.0.0", "jsonwebtoken@8.5.1"]
+    },
+    {
+      "id": "SNYK-JS-AXIOS-6144788",
+      "title": "Cross-site Request Forgery",
+      "severity": "medium",
+      "packageName": "axios",
+      "version": "0.21.1",
+      "fixedIn": ["1.6.0"],
+      "cvssScore": 6.5,
+      "identifiers": {
+        "CVE": ["CVE-2023-45857"],
+        "CWE": ["CWE-352"]
+      },
+      "description": "## Overview\nAffected versions of this package leak the `XSRF-TOKEN` cookie value to third-party hosts, allowing an attacker to view that token.",
+      "from": ["checkout-service@1.0.0", "axios@0.21.1"]
+    },
+    {
+      "id": "SNYK-JS-NODEFORGE-2331908",
+      "title": "Improper Verification of Cryptographic Signature",
+      "severity": "low",
+      "packageName": "node-forge",
+      "version": "0.10.0",
+      "fixedIn": [],
+      "cvssScore": 3.7,
+      "identifiers": {
+        "CVE": ["CVE-2022-24771"],
+        "CWE": ["CWE-347"]
+      },
+      "description": "## Overview\nAffected versions of this package are vulnerable to signature verification bypass when parsing certain malformed RSA PKCS#1 v1.5 signatures.",
+      "from": ["checkout-service@1.0.0", "node-forge@0.10.0"]
+    }
+  ]
+}
