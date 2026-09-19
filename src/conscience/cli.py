@@ -28,7 +28,20 @@ app = typer.Typer(
     help="Understand security findings, and stop AI agents from writing new ones.",
 )
 
-EXAMPLES = Path(__file__).resolve().parents[2] / "examples"
+def _examples_dir() -> Path:
+    """Find the bundled examples from a source checkout or a plain install.
+
+    `parents[2]` is the repo root only for an editable install, where the
+    package still lives in `src/`. From site-packages it points somewhere that
+    does not exist, so fall back to the working directory.
+    """
+    packaged = Path(__file__).resolve().parents[2] / "examples"
+    if packaged.is_dir():
+        return packaged
+    return Path.cwd() / "examples"
+
+
+EXAMPLES = _examples_dir()
 
 
 def _settings(offline: bool) -> Settings:

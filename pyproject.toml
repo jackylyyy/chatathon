@@ -10,7 +10,10 @@ readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }
 dependencies = [
-    "anthropic>=0.40",
+    # llm.py calls client.messages.parse(output_format=...) and reads
+    # ParsedMessage.parsed_output. Both arrived in the 1.x SDK; on 0.40 the
+    # guard silently degrades to offline explanations forever.
+    "anthropic>=1.0",
     "pydantic>=2.6",
     "typer>=0.12",
     "rich>=13.7",

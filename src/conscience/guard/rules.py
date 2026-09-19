@@ -14,7 +14,6 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
-from typing import Literal
 
 from ..models import Category, Severity
 
@@ -34,6 +33,12 @@ class Rule:
     category: Category = "code"
     cwe: tuple[str, ...] = ()
     offline_explanation: dict = field(default_factory=dict)
+    # One line of code this rule is meant to catch. Optional, and never used by
+    # the engine - it exists so the landing page can show a real before/after
+    # pair taken from the ruleset instead of a hand-written imitation of one.
+    # `scripts/sync_site.py` reads it; `tests/test_site_sync.py` keeps them
+    # from drifting apart.
+    example: str | None = None
     # A second pattern that, if it also matches the line, suppresses the finding.
     unless: re.Pattern | None = None
     # A second pattern that must ALSO match, anywhere on the line. Lets a rule
@@ -121,6 +126,7 @@ RULES: list[Rule] = [
             r"(password|passwd|secret|api[_-]?key|access[_-]?token|auth[_-]?token|"
             r"client[_-]?secret)\s*[:=]\s*['\"][^'\"]{8,}['\"]"
         ),
+        example='STRIPE_SECRET = "sk_live_51H8xQ2eZvKYlo2C"',
         # Placeholders and env lookups are fine.
         unless=_r(r"(os\.environ|process\.env|getenv|\$\{|<[^>]+>|xxx|placeholder|example|changeme|your[_-])"),
         cwe=("CWE-798",),
@@ -154,6 +160,7 @@ RULES: list[Rule] = [
         severity=Severity.CRITICAL,
         extensions=PY,
         pattern=_r(r"\b(eval|exec)\s*\(\s*(?!['\"])[A-Za-z_]"),
+        example="result = eval(request.args['expr'])",
         cwe=("CWE-94",),
         offline_explanation={
             "headline": "This runs a string as Python code.",
@@ -262,6 +269,7 @@ RULES: list[Rule] = [
         name="Unsafe deserialization",
         severity=Severity.HIGH,
         pattern=_r(r"(pickle\.loads?|cPickle\.loads?|yaml\.load\s*\((?![^)]*Safe)|marshal\.loads)"),
+        example="session = pickle.loads(request.data)",
         cwe=("CWE-502",),
         offline_explanation={
             "headline": "This turns bytes back into objects in a way that can run code.",

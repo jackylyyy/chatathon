@@ -23,8 +23,11 @@ def parse_sarif(payload: Any) -> list[Finding]:
 
     out: list[Finding] = []
     for run in payload.get("runs") or []:
+        # `or {}` rather than a .get() default: a tool block with an explicit
+        # null driver is valid JSON, and the default only applies to a missing
+        # key - not a present-but-null one.
         tool_name = (
-            (run.get("tool") or {}).get("driver", {}).get("name") or "sarif"
+            ((run.get("tool") or {}).get("driver") or {}).get("name") or "sarif"
         ).lower()
         rules = _index_rules(run)
 

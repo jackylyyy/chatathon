@@ -96,8 +96,11 @@ def summary_table(items: list[ExplainedFinding]) -> Table:
             severity_tag(item.finding.severity),
             f"{item.priority:.0f}",
             triage_bucket(item),
-            item.explanation.headline,
-            item.finding.location,
+            # Wrapped in Text, never passed as a markup string: a headline or a
+            # path containing square brackets (`users[id]`, `handlers[name]`)
+            # would otherwise be read as a rich style tag and silently deleted.
+            Text(item.explanation.headline),
+            Text(item.finding.location),
         )
     return table
 
@@ -197,7 +200,11 @@ def render_verdict(verdict: Verdict, *, show_feedback: bool = True) -> None:
     if show_feedback and verdict.agent_feedback:
         console.print(
             Panel(
-                verdict.agent_feedback,
+                # Text(), not the raw string. The feedback block quotes the
+                # agent's own code, and a snippet like `handlers[name]` read as
+                # markup loses the subscript - corrupting the safer pattern in
+                # exactly the output the agent is meant to copy.
+                Text(verdict.agent_feedback),
                 title="Injected back into the agent's context",
                 border_style="blue",
                 padding=(1, 2),

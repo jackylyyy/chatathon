@@ -503,9 +503,9 @@ img,svg{ max-width:100%; }
       </div>
 
       <dl class="stats">
-        <div><dt class="display text-glow-c">12ms</dt><dd>median interception latency</dd></div>
-        <div><dt class="display text-glow-c">0</dt><dd>secrets reach the repo</dd></div>
-        <div><dt class="display text-glow-c">∞</dt><dd>agents trained, not throttled</dd></div>
+        <div><dt class="display text-glow-c" data-stat="ruleCount">—</dt><dd>rules, each with a hand-written fix</dd></div>
+        <div><dt class="display text-glow-c" data-stat="testCount">—</dt><dd>tests, no network required</dd></div>
+        <div><dt class="display text-glow-c">0</dt><dd>API calls needed to block an edit</dd></div>
       </dl>
     </div>
 
@@ -519,28 +519,28 @@ img,svg{ max-width:100%; }
             <i style="background:hsl(var(--accent)/.7)"></i>
           </span>
         </div>
+        <!-- Both snippets are checked by tests/test_site_sync.py: the first
+             must be blocked by the shipped ruleset, the second must not. -->
         <div class="panel-code">
-<pre class="code code-raw">// agent suggested
-app.post("/run", (req, res) =&gt; {
-  const code = req.body.expr;
-  const out  = eval(code);     // ⚠ eval on user input
-  res.json({ result: out });
-});</pre>
+<pre class="code code-raw" id="hero-unsafe"># agent suggested
+@app.post("/run")
+def run():
+    expr = request.json["expr"]
+    return {"result": eval(expr)}   # eval on user input</pre>
           <div class="lens-glow" id="lens">
-<pre class="code">// conscience-corrected
-app.post("/run", (req, res) =&gt; {
-  const expr = String(req.body.expr ?? "");
-  const out  = safeEval(expr, allow); // sandboxed AST
-  res.json({ result: out });
-});</pre>
+<pre class="code" id="hero-safe"># conscience-corrected
+@app.post("/run")
+def run():
+    expr = request.json["expr"]
+    return {"result": ast.literal_eval(expr)}   # data, never code</pre>
             <div class="lens-edge"></div>
           </div>
         </div>
         <div class="panel-foot">
-          ▸ move cursor across the diff — the conscience refracts the unsafe suggestion into a safe pattern<span class="anim-blink" style="margin-left:.25rem">▌</span>
+          ▸ move cursor across the diff — <span data-rule-id="code.python-eval-exec">code.python-eval-exec</span> refracts the unsafe suggestion into its own safer pattern<span class="anim-blink" style="margin-left:.25rem">▌</span>
         </div>
       </div>
-      <p class="panel-note">CVE-class issues caught at the authoring moment · extends Snyk Malicious Code Defense</p>
+      <p class="panel-note">Caught at the authoring moment, by a rule you can read in <a href="https://github.com/jackylyyy/chatathon/blob/main/src/conscience/guard/rules.py" style="color:hsl(var(--accent))">guard/rules.py</a></p>
     </div>
   </div>
 </section>
@@ -577,19 +577,19 @@ app.post("/run", (req, res) =&gt; {
       <div class="sec-head-l col-lg-6">
         <span class="eyebrow">03 — THE LOGIC VAULT</span>
         <h2 class="display h2 balance">
-          Six active sentinels.<br /><span class="violet text-glow-v">One refractive filter.</span>
+          <span data-stat="ruleCount">—</span> active sentinels.<br /><span class="violet text-glow-v">One refractive filter.</span>
         </h2>
       </div>
       <div class="vault-total-wrap">
         <div class="vault-total neo-inset">
-          <div class="n text-glow-c tnum" id="vault-total">0</div>
-          <p>total interceptions · last 24h · across {claude-code, cursor, copilot}</p>
+          <div class="n text-glow-c tnum" id="vault-total">—</div>
+          <p>rules in <code>guard/rules.py</code>, read straight out of the package at build time · <code>conscience rules</code> prints the same table</p>
         </div>
       </div>
     </header>
 
     <div class="vault-grid" id="vault-grid"><!-- injected --></div>
-    <p class="vault-note">hover any sentinel to break the glass and reveal the raw pattern it matches against</p>
+    <p class="vault-note">hover any sentinel to break the glass and reveal the raw regex it matches against</p>
   </div>
 </section>
 
@@ -605,8 +605,9 @@ app.post("/run", (req, res) =&gt; {
         </h2>
       </div>
       <p class="sec-lede lede-proxy">
-        One config in your agent's tool layer. No new IDE, no context-switching. The proxy runs
-        silently and measures a single metric that matters: how fast your AI's code gets safer.
+        It is a <code>PreToolUse</code> hook, not a new IDE. Claude Code hands every
+        <code>Write</code> and <code>Edit</code> to it before the edit lands; it reconstructs the
+        file as it <em>will</em> be, diffs it against what it is, and judges only the added lines.
       </p>
     </header>
 
@@ -614,12 +615,24 @@ app.post("/run", (req, res) =&gt; {
       <div class="proxy-left">
         <div class="graph-card neo-raised">
           <div class="graph-head">
-            <div class="who"><span data-icon="activity" data-size="16"></span><span>safety_velocity.svg</span></div>
-            <span class="delta">▲ +37% week over week</span>
+            <div class="who"><span data-icon="activity" data-size="16"></span><span>conscience hook --fast</span></div>
+            <span class="delta">real output, no model call</span>
           </div>
-          <div style="margin-top:1rem" id="velocity"></div>
+<pre class="code" style="padding:1rem 0 0;white-space:pre-wrap"><span style="color:hsl(var(--muted))">$</span> printf '%s' '{"tool_name":"Write","cwd":".",
+    "tool_input":{"file_path":"api.py",
+    "content":"os.system(\"rm \" + user_input)"}}' \
+    | conscience hook --fast
+
+<span style="color:hsl(var(--destructive))">conscience hook: DENIED: Shell command built from
+a variable in api.py</span>
+
+<span style="color:hsl(var(--accent))">{"hookSpecificOutput": {
+  "hookEventName": "PreToolUse",
+  "permissionDecision": "deny",
+  "permissionDecisionReason": "## Security review:
+     this change was not applied ..." }}</span></pre>
           <div class="graph-foot">
-            <span>week 1</span><span>interceptions ↓ · safe-first suggestions ↑</span><span>week 12</span>
+            <span>exit 0 — always</span><span>the edit never reached disk</span>
           </div>
         </div>
       </div>
@@ -627,11 +640,19 @@ app.post("/run", (req, res) =&gt; {
       <div class="proxy-right" id="agents">
         <!-- agent rows injected -->
         <div class="config neo-inset">
-          <div class="path">~/.agent-conscience/config.toml</div>
-<pre>[proxy]
-listen = "127.0.0.1:7777"
-agents  = ["claude-code", "cursor", "copilot"]
-mode    = "explain-and-rewrite"</pre>
+          <div class="path">.claude/settings.json</div>
+<pre>{
+  "hooks": {
+    "PreToolUse": [{
+      "matcher": "Write|Edit|MultiEdit",
+      "hooks": [{
+        "type": "command",
+        "command": "\"${CLAUDE_PROJECT_DIR}/.venv/bin/conscience\" hook --fast",
+        "timeout": 30
+      }]
+    }]
+  }
+}</pre>
         </div>
       </div>
     </div>
@@ -761,37 +782,28 @@ mode    = "explain-and-rewrite"</pre>
   })();
 
   /* =========================================================
-     CORRECTION STREAM
+     DATA — generated from the Python package by
+     scripts/sync_site.py, verified by tests/test_site_sync.py.
+     Nothing on this page invents a rule the code does not have.
      ========================================================= */
-  var CASES = [
-    {
-      tag: "INJECTION · eval()",
-      severity: "critical",
-      unsafe: 'const out = eval(req.body.expr);',
-      safe: 'const out = safeEval(req.body.expr, allowList);',
-      conscience: "This uses eval() on user input, which enables arbitrary code injection. I replaced it with a sandboxed AST evaluator bound to an allow-list — same ergonomics, no code execution surface.",
-      plain: "eval() takes whatever text you give it and runs it as real code. If that text comes from a user (like a form field or API request), a stranger can type instructions that your server will happily execute — things like \u201Cdelete the database\u201D, \u201Csend me everyone's passwords\u201D, or \u201Cinstall a backdoor\u201D. It's the digital equivalent of handing a stranger your keyboard. We swap it for a locked-down checker that only understands a tiny, safe list of operations, so no one can sneak in commands.",
-      pattern: "/\\beval\\s*\\(/"
-    },
-    {
-      tag: "SECRETS · hardcoded credential",
-      severity: "high",
-      unsafe: 'const TOKEN = "ghp_9aK3f2...";  // agent wrote it',
-      safe: 'const TOKEN = process.env.GITHUB_TOKEN;',
-      conscience: "A live credential was embedded in source. I moved it to an environment variable and flagged the exposed token for rotation — it should be treated as compromised.",
-      plain: "A password or access key was typed directly into the code. The moment that code is saved — to GitHub, to a build log, to a shared screenshot — that key is out in the open. Anyone who sees it can pretend to be you: reading private repos, sending messages from your account, or running up cloud bills in your name. We move secrets into hidden environment settings instead, and treat the leaked key as already stolen (rotate it immediately).",
-      pattern: "/(api|token|secret|password)\\s*=\\s*[\"'][^\"']{8,}/"
-    },
-    {
-      tag: "DESERIALIZATION · pickle",
-      severity: "critical",
-      unsafe: 'obj = pickle.loads(request.data)',
-      safe: 'obj = json.loads(request.data)  # schema-validated',
-      conscience: "pickle.loads can execute arbitrary code during deserialization. I switched to JSON with a validated schema — untrusted input must never cross an object-graph boundary that runs code.",
-      plain: "Some file formats don't just store data — they can also carry hidden instructions that run the moment the file is opened. pickle and unsafe YAML are like that: a crafted file can say \u201Cwhile you're reading me, also run this command.\u201D An attacker emails or uploads one of these files, your app opens it, and the damage is done before anything looks wrong. JSON is just plain data with no hidden commands, so we use that instead and double-check its shape.",
-      pattern: "/pickle\\.loads|yaml\\.load\\(.*Loader\\)/"
+  var DATA = (function () {
+    var el = document.getElementById("conscience-data");
+    try {
+      return JSON.parse(el.textContent);
+    } catch (e) {
+      return { ruleCount: 0, testCount: 0, cases: [], rules: [], repo: "#" };
     }
-  ];
+  })();
+
+  var CASES = DATA.cases;
+  var SENTINELS = DATA.rules;
+
+  // Numbers that appear in prose (the hero stats, the vault heading) come from
+  // the same payload, so they cannot disagree with the list below them.
+  document.querySelectorAll("[data-stat]").forEach(function (el) {
+    var value = DATA[el.getAttribute("data-stat")];
+    if (typeof value === "number") el.textContent = value.toLocaleString();
+  });
 
   (function stream() {
     var host = document.getElementById("cases");
@@ -807,7 +819,7 @@ mode    = "explain-and-rewrite"</pre>
             '<span data-icon="terminal" data-size="20"></span>' +
             '<div>' +
               '<div class="who">agent_conscience ▸</div>' +
-              '<p>' + esc(c.conscience) + '</p>' +
+              '<p>' + esc(c.verdict) + ' <b>' + esc(c.fixSummary) + '</b></p>' +
               '<div class="pat">pattern: <b>' + esc(c.pattern) + '</b></div>' +
             '</div>' +
           '</div>' +
@@ -815,7 +827,7 @@ mode    = "explain-and-rewrite"</pre>
         '<div class="case-right">' +
           '<div class="diff neo-raised">' +
             '<div class="diff-bar">' +
-              '<span class="tag">' + esc(c.tag) + '</span>' +
+              '<span class="tag">' + esc(c.category.toUpperCase()) + ' · ' + esc(c.id) + '</span>' +
               '<span class="sev ' + (c.severity === "critical" ? "critical" : "") + '">● ' + esc(c.severity) + '</span>' +
             '</div>' +
             '<div class="diff-cols">' +
@@ -837,8 +849,14 @@ mode    = "explain-and-rewrite"</pre>
             '</button>' +
             '<div class="explain-panel"><div>' +
               '<div class="explain-body neo-inset">' +
-                '<span class="k">why this matters in the real world</span>' +
+                '<span class="k">what an attacker actually does with it</span>' +
                 '<p>' + esc(c.plain) + '</p>' +
+                (c.fixSteps.length
+                  ? '<ol style="margin:.75rem 0 0;padding-left:1.1rem">' +
+                    c.fixSteps.map(function (s) {
+                      return '<li style="margin-top:.35rem">' + esc(s) + '</li>';
+                    }).join("") + '</ol>'
+                  : "") +
               '</div>' +
             '</div></div>' +
           '</div>' +
@@ -894,26 +912,14 @@ mode    = "explain-and-rewrite"</pre>
   /* =========================================================
      LOGIC VAULT
      ========================================================= */
-  var SENTINELS = [
-    { id: "SEC-01", name: "Hardcoded Secrets", icon: "key-round", count: 1284,
-      pattern: "/(?:api|token|secret|password|key)\\s*=\\s*[\"'][^\"']{8,}/",
-      desc: "Live credentials embedded in source or config." },
-    { id: "SEC-02", name: "Code Injection", icon: "code-2", count: 642,
-      pattern: "/\\beval\\s*\\(|new Function\\s*\\(|child_process\\.exec/",
-      desc: "User input crossing an execution boundary." },
-    { id: "SEC-03", name: "Unsafe Deserialization", icon: "binary", count: 318,
-      pattern: "/pickle\\.loads|yaml\\.load\\(|unserialize/",
-      desc: "Object graphs that execute code on load." },
-    { id: "SEC-04", name: "Vulnerable Dependencies", icon: "package-open", count: 2107,
-      pattern: "/\"(\\w+)\":\\s*\"(\\d+\\.\\d+\\.\\d+)\"/",
-      desc: "Pinned versions matching known CVE advisories." },
-    { id: "SEC-05", name: "SSRF / Open Redirect", icon: "network", count: 471,
-      pattern: "/fetch\\(|axios\\.(get|post)|redirect/",
-      desc: "Unvalidated URLs passed to outbound requests." },
-    { id: "SEC-06", name: "Path Traversal", icon: "file-lock-2", count: 389,
-      pattern: "/\\.\\.\\/|path\\.join\\(|readFileSync/",
-      desc: "User-controlled segments reaching the filesystem." }
-  ];
+  // One icon per rule category, so a new rule picks one up automatically.
+  var CATEGORY_ICON = {
+    secret: "key-round",
+    code: "code-2",
+    config: "cpu",
+    dependency: "package-open",
+    license: "file-lock-2"
+  };
 
   (function vault() {
     var grid = document.getElementById("vault-grid");
@@ -921,19 +927,20 @@ mode    = "explain-and-rewrite"</pre>
     if (!grid) return;
 
     grid.innerHTML = SENTINELS.map(function (s) {
+      var scope = s.appliesTo.join(", ");
       return '' +
       '<button class="sentinel neo" type="button" aria-expanded="false">' +
         '<span class="halo"></span>' +
         '<div class="top">' +
-          '<span class="ico neo-sm" data-icon="' + s.icon + '" data-size="20"></span>' +
-          '<span class="id">' + s.id + '</span>' +
+          '<span class="ico neo-sm" data-icon="' + (CATEGORY_ICON[s.category] || "binary") + '" data-size="20"></span>' +
+          '<span class="id">' + esc(s.severity.toUpperCase()) + '</span>' +
         '</div>' +
         '<h3>' + esc(s.name) + '</h3>' +
-        '<p class="desc">' + esc(s.desc) + '</p>' +
+        '<p class="desc">' + esc(s.headline || s.whatItMeans) + '</p>' +
         '<div class="bottom">' +
           '<div>' +
-            '<div class="count text-glow-c">' + s.count.toLocaleString() + '</div>' +
-            '<div class="cap">interceptions · today</div>' +
+            '<div class="mono" style="font-size:11px;color:hsl(var(--accent))">' + esc(s.id) + '</div>' +
+            '<div class="cap">' + esc(scope) + (s.cwe.length ? ' · ' + esc(s.cwe.join(", ")) : "") + '</div>' +
           '</div>' +
           '<span class="reveal">reveal pattern</span>' +
         '</div>' +

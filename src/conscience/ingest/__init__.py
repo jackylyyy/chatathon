@@ -38,7 +38,17 @@ def detect_format(payload: Any) -> str:
 
 def load_findings(path: str | Path) -> tuple[list[Finding], str]:
     """Read a scan report from disk. Returns (findings, detected format)."""
-    payload = json.loads(Path(path).read_text(encoding="utf-8"))
+    text = Path(path).read_text(encoding="utf-8")
+    try:
+        payload = json.loads(text)
+    except json.JSONDecodeError as exc:
+        # A truncated or non-JSON report is a user mistake, not a crash. Raise
+        # the same error the CLI already handles, so they get one clear line
+        # instead of a traceback.
+        raise UnknownReportFormat(
+            f"{path} is not valid JSON ({exc.msg} at line {exc.lineno}). "
+            "Expected Snyk JSON (`snyk test --json`) or SARIF 2.1.0."
+        ) from exc
     return parse_findings(payload)
 
 

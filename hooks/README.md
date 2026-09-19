@@ -19,7 +19,7 @@ project:
         "hooks": [
           {
             "type": "command",
-            "command": "\"${CLAUDE_PROJECT_DIR}/.venv/Scripts/conscience.exe\" hook --fast",
+            "command": "\"${CLAUDE_PROJECT_DIR}/.venv/bin/conscience\" hook --fast",
             "timeout": 30
           }
         ]
@@ -32,13 +32,19 @@ project:
 **Restart Claude Code after adding this.** Hook configuration is captured at
 startup, so a newly-added hook does not fire in an already-running session.
 
-### On macOS or Linux
+### On Windows
 
-Swap the path - the venv puts executables in `bin`, not `Scripts`:
+Swap the path - the venv puts executables in `Scripts`, not `bin`, and they
+carry a `.exe` suffix:
 
 ```json
-"command": "\"${CLAUDE_PROJECT_DIR}/.venv/bin/conscience\" hook --fast"
+"command": "\"${CLAUDE_PROJECT_DIR}/.venv/Scripts/conscience.exe\" hook --fast"
 ```
+
+There is no single string that works on both, so whichever platform the
+committed value does not match has to make this edit locally. If the path is
+wrong the hook simply never fires - Claude Code does not report a missing hook
+command, so a silently unguarded session looks exactly like a clean one.
 
 ## What happens
 
@@ -70,8 +76,12 @@ The hook reads the same JSON Claude Code would send, so you can drive it by
 hand:
 
 ```bash
-echo '{"tool_name":"Write","cwd":".","tool_input":{"file_path":"api.py","content":"import os\nos.system(\"rm \" + user_input)\n"}}' | conscience hook --fast
+printf '%s' '{"tool_name":"Write","cwd":".","tool_input":{"file_path":"api.py","content":"import os\nos.system(\"rm \" + user_input)\n"}}' | conscience hook --fast
 ```
+
+(`printf '%s'`, not `echo` - zsh's builtin `echo` expands the `\n` inside the
+JSON string into a real newline, and the hook then rejects the payload as
+invalid JSON.)
 
 You should see a `permissionDecision: "deny"` with the explanation. Swap in
 harmless content and you get a single line on stderr and nothing on stdout.

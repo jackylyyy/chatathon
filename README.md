@@ -49,6 +49,14 @@ See [hooks/README.md](hooks/README.md). It's already wired up in [.claude/settin
 python -m venv .venv
 ```
 
+On macOS or Linux:
+
+```bash
+source .venv/bin/activate
+```
+
+On Windows:
+
 ```bash
 .venv/Scripts/activate
 ```
