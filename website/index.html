@@ -1,0 +1,1165 @@
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AgentGuard — Secure AI Development</title>
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg: #06111f;
+            --bg-light: #0b1b2e;
+            --card: #10243a;
+            --card-hover: #15304b;
+            --text: #f5f8fb;
+            --muted: #9aaabd;
+            --green: #00d084;
+            --green-dark: #00ad70;
+            --border: rgba(255,255,255,0.1);
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: Inter, -apple-system, BlinkMacSystemFont,
+                "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+        }
+
+        a {
+            color: inherit;
+            text-decoration: none;
+        }
+
+        /* =========================
+           NAVIGATION
+        ========================= */
+
+        nav {
+            height: 76px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 6%;
+            border-bottom: 1px solid var(--border);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            background: rgba(6, 17, 31, 0.9);
+            backdrop-filter: blur(16px);
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 21px;
+            font-weight: 800;
+            letter-spacing: -0.5px;
+        }
+
+        .logo-mark {
+            width: 30px;
+            height: 30px;
+            border-radius: 8px;
+            background: var(--green);
+            display: grid;
+            place-items: center;
+            color: #06111f;
+            font-size: 17px;
+            font-weight: 900;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 34px;
+            align-items: center;
+        }
+
+        .nav-links a {
+            color: #c2cfdd;
+            font-size: 14px;
+            transition: 0.2s;
+        }
+
+        .nav-links a:hover {
+            color: white;
+        }
+
+        .nav-actions {
+            display: flex;
+            align-items: center;
+            gap: 18px;
+        }
+
+        .login {
+            color: #c2cfdd;
+            font-size: 14px;
+        }
+
+        .nav-button {
+            background: var(--green);
+            color: #03140d;
+            padding: 10px 18px;
+            border-radius: 7px;
+            font-size: 14px;
+            font-weight: 700;
+        }
+
+        /* =========================
+           HERO
+        ========================= */
+
+        .hero {
+            min-height: 680px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 110px 20px 100px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .hero::before {
+            content: "";
+            position: absolute;
+            width: 700px;
+            height: 700px;
+            background: rgba(0, 208, 132, 0.08);
+            filter: blur(100px);
+            border-radius: 50%;
+            top: -300px;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+
+        .hero-content {
+            max-width: 900px;
+            position: relative;
+            z-index: 2;
+        }
+
+        .eyebrow {
+            display: inline-block;
+            color: var(--green);
+            border: 1px solid rgba(0,208,132,0.35);
+            background: rgba(0,208,132,0.08);
+            padding: 7px 13px;
+            border-radius: 999px;
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            margin-bottom: 28px;
+        }
+
+        .hero h1 {
+            font-size: clamp(52px, 7vw, 92px);
+            line-height: 0.98;
+            letter-spacing: -5px;
+            margin-bottom: 30px;
+        }
+
+        .hero h1 span {
+            color: var(--green);
+        }
+
+        .hero p {
+            max-width: 680px;
+            margin: auto;
+            color: var(--muted);
+            font-size: 19px;
+            line-height: 1.7;
+        }
+
+        .hero-buttons {
+            margin-top: 38px;
+            display: flex;
+            justify-content: center;
+            gap: 14px;
+        }
+
+        .button {
+            padding: 14px 23px;
+            border-radius: 7px;
+            font-size: 14px;
+            font-weight: 700;
+            transition: 0.2s;
+        }
+
+        .button-primary {
+            background: var(--green);
+            color: #03140d;
+        }
+
+        .button-primary:hover {
+            background: #13e493;
+            transform: translateY(-2px);
+        }
+
+        .button-secondary {
+            border: 1px solid var(--border);
+            background: rgba(255,255,255,0.03);
+        }
+
+        .button-secondary:hover {
+            background: rgba(255,255,255,0.07);
+        }
+
+        /* =========================
+           TERMINAL
+        ========================= */
+
+        .terminal {
+            max-width: 950px;
+            margin: -20px auto 120px;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            overflow: hidden;
+            background: #071522;
+            box-shadow: 0 30px 80px rgba(0,0,0,0.35);
+        }
+
+        .terminal-top {
+            height: 42px;
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            padding: 0 16px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .dot {
+            width: 9px;
+            height: 9px;
+            border-radius: 50%;
+            background: #536273;
+        }
+
+        .terminal-body {
+            padding: 28px;
+            text-align: left;
+            font-family: "SFMono-Regular", Consolas, monospace;
+            font-size: 13px;
+            color: #b8c8d8;
+        }
+
+        .terminal-line {
+            margin-bottom: 10px;
+        }
+
+        .terminal-green {
+            color: var(--green);
+        }
+
+        .terminal-red {
+            color: #ff6978;
+        }
+
+        .terminal-yellow {
+            color: #f6c85f;
+        }
+
+        /* =========================
+           SECTION
+        ========================= */
+
+        section {
+            padding: 110px 6%;
+        }
+
+        .section-header {
+            max-width: 760px;
+            margin-bottom: 55px;
+        }
+
+        .section-label {
+            color: var(--green);
+            font-size: 12px;
+            font-weight: 800;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            margin-bottom: 14px;
+        }
+
+        .section-header h2 {
+            font-size: clamp(38px, 5vw, 60px);
+            line-height: 1.05;
+            letter-spacing: -3px;
+            margin-bottom: 20px;
+        }
+
+        .section-header p {
+            color: var(--muted);
+            font-size: 17px;
+            max-width: 650px;
+        }
+
+        /* =========================
+           PROBLEM CARDS
+        ========================= */
+
+        .problems {
+            background: #081727;
+        }
+
+        .card-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 18px;
+        }
+
+        .card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 30px;
+            transition: 0.25s;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            background: var(--card-hover);
+            border-color: rgba(0,208,132,0.3);
+        }
+
+        .card-number {
+            color: var(--green);
+            font-family: monospace;
+            font-size: 13px;
+            margin-bottom: 45px;
+        }
+
+        .card h3 {
+            font-size: 23px;
+            margin-bottom: 12px;
+        }
+
+        .card p {
+            color: var(--muted);
+            font-size: 14px;
+        }
+
+        /* =========================
+           PLATFORM
+        ========================= */
+
+        .platform {
+            background: var(--bg);
+        }
+
+        .platform-layout {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 70px;
+            align-items: center;
+        }
+
+        .platform-copy h2 {
+            font-size: 52px;
+            line-height: 1.05;
+            letter-spacing: -3px;
+            margin-bottom: 20px;
+        }
+
+        .platform-copy p {
+            color: var(--muted);
+            font-size: 17px;
+            margin-bottom: 30px;
+        }
+
+        .feature-list {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .feature {
+            display: flex;
+            gap: 14px;
+            padding: 16px;
+            border: 1px solid var(--border);
+            border-radius: 9px;
+            background: rgba(255,255,255,0.02);
+        }
+
+        .check {
+            color: var(--green);
+            font-weight: 900;
+        }
+
+        .dashboard {
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            background: #0a1929;
+            padding: 20px;
+            box-shadow: 0 30px 80px rgba(0,0,0,0.25);
+        }
+
+        .dashboard-header {
+            display: flex;
+            justify-content: space-between;
+            padding-bottom: 18px;
+            border-bottom: 1px solid var(--border);
+            font-size: 13px;
+        }
+
+        .status {
+            color: var(--green);
+        }
+
+        .vulnerability {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 17px 5px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .vuln-info {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .severity {
+            width: 9px;
+            height: 9px;
+            border-radius: 50%;
+            background: #ff5964;
+        }
+
+        .severity.medium {
+            background: #f5bd4f;
+        }
+
+        .severity.low {
+            background: var(--green);
+        }
+
+        .vuln-name {
+            font-size: 13px;
+        }
+
+        .vuln-package {
+            color: var(--muted);
+            font-size: 11px;
+        }
+
+        .fix {
+            font-size: 11px;
+            color: var(--green);
+            border: 1px solid rgba(0,208,132,0.3);
+            padding: 5px 9px;
+            border-radius: 5px;
+        }
+
+        /* =========================
+           STATS
+        ========================= */
+
+        .stats {
+            background: #081727;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            border-top: 1px solid var(--border);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .stat {
+            padding: 42px 30px;
+            border-right: 1px solid var(--border);
+        }
+
+        .stat:last-child {
+            border-right: none;
+        }
+
+        .stat-number {
+            font-size: 46px;
+            font-weight: 800;
+            letter-spacing: -2px;
+            color: var(--green);
+        }
+
+        .stat-title {
+            font-weight: 700;
+            margin-top: 8px;
+        }
+
+        .stat p {
+            color: var(--muted);
+            font-size: 13px;
+            margin-top: 5px;
+        }
+
+        /* =========================
+           INTEGRATIONS
+        ========================= */
+
+        .integrations {
+            text-align: center;
+        }
+
+        .integration-grid {
+            max-width: 950px;
+            margin: 50px auto 0;
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+        }
+
+        .integration {
+            border: 1px solid var(--border);
+            border-radius: 9px;
+            padding: 25px;
+            color: #aab9c9;
+            font-weight: 700;
+            background: rgba(255,255,255,0.02);
+        }
+
+        .integration:hover {
+            color: white;
+            border-color: rgba(0,208,132,0.3);
+        }
+
+        /* =========================
+           CTA
+        ========================= */
+
+        .cta {
+            padding: 130px 20px;
+            text-align: center;
+            background:
+                radial-gradient(
+                    circle at center,
+                    rgba(0,208,132,0.12),
+                    transparent 55%
+                ),
+                #081727;
+        }
+
+        .cta h2 {
+            font-size: clamp(42px, 6vw, 70px);
+            letter-spacing: -4px;
+            line-height: 1;
+            margin-bottom: 22px;
+        }
+
+        .cta p {
+            color: var(--muted);
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .cta .button {
+            display: inline-block;
+            margin-top: 30px;
+        }
+
+        /* =========================
+           FOOTER
+        ========================= */
+
+        footer {
+            padding: 55px 6%;
+            border-top: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            color: var(--muted);
+            font-size: 13px;
+        }
+
+        .footer-links {
+            display: flex;
+            gap: 25px;
+        }
+
+        .footer-links a:hover {
+            color: white;
+        }
+
+        /* =========================
+           RESPONSIVE
+        ========================= */
+
+        @media (max-width: 900px) {
+
+            .nav-links {
+                display: none;
+            }
+
+            .card-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .platform-layout {
+                grid-template-columns: 1fr;
+            }
+
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .stat:nth-child(2) {
+                border-right: none;
+            }
+
+            .integration-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 600px) {
+
+            nav {
+                padding: 0 20px;
+            }
+
+            .login {
+                display: none;
+            }
+
+            section {
+                padding: 80px 20px;
+            }
+
+            .hero {
+                padding: 90px 20px;
+            }
+
+            .hero h1 {
+                letter-spacing: -3px;
+            }
+
+            .hero-buttons {
+                flex-direction: column;
+            }
+
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .stat {
+                border-right: none;
+                border-bottom: 1px solid var(--border);
+            }
+
+            .integration-grid {
+                grid-template-columns: 1fr;
+            }
+
+            footer {
+                flex-direction: column;
+                gap: 25px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- NAVIGATION -->
+
+    <nav>
+        <a href="#" class="logo">
+            <div class="logo-mark">A</div>
+            AgentGuard
+        </a>
+
+        <div class="nav-links">
+            <a href="#platform">Platform</a>
+            <a href="#security">Security</a>
+            <a href="#integrations">Integrations</a>
+            <a href="#resources">Resources</a>
+        </div>
+
+        <div class="nav-actions">
+            <a href="#" class="login">Log in</a>
+            <a href="#demo" class="nav-button">Get started</a>
+        </div>
+    </nav>
+
+
+    <!-- HERO -->
+
+    <main>
+
+        <section class="hero">
+
+            <div class="hero-content">
+
+                <div class="eyebrow">
+                    AI Security Infrastructure
+                </div>
+
+                <h1>
+                    Let AI build.<br>
+                    <span>We keep it secure.</span>
+                </h1>
+
+                <p>
+                    AgentGuard is an independent security layer that
+                    continuously validates AI-generated code before it
+                    reaches your codebase.
+                </p>
+
+                <div class="hero-buttons">
+                    <a href="#demo" class="button button-primary">
+                        Start securing your code
+                    </a>
+
+                    <a href="#platform" class="button button-secondary">
+                        Explore the platform →
+                    </a>
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <!-- TERMINAL -->
+
+        <div class="terminal">
+
+            <div class="terminal-top">
+                <div class="dot"></div>
+                <div class="dot"></div>
+                <div class="dot"></div>
+            </div>
+
+            <div class="terminal-body">
+
+                <div class="terminal-line">
+                    <span class="terminal-green">$</span>
+                    agentguard scan --agent cursor
+                </div>
+
+                <div class="terminal-line">
+                    → Analyzing proposed changes...
+                </div>
+
+                <div class="terminal-line">
+                    → Checking dependencies...
+                </div>
+
+                <div class="terminal-line">
+                    → Checking secrets...
+                </div>
+
+                <div class="terminal-line">
+                    → Checking injection patterns...
+                </div>
+
+                <div class="terminal-line terminal-red">
+                    ✕ 2 security issues detected
+                </div>
+
+                <div class="terminal-line terminal-yellow">
+                    ⚠ Unsafe deserialization detected in api/user.py
+                </div>
+
+                <div class="terminal-line terminal-green">
+                    ✓ AI-generated fix available
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <!-- PROBLEMS -->
+
+        <section class="problems" id="security">
+
+            <div class="section-header">
+
+                <div class="section-label">
+                    The problem
+                </div>
+
+                <h2>
+                    AI writes code faster than security teams can review it.
+                </h2>
+
+                <p>
+                    Modern development has introduced a new security
+                    bottleneck. AI agents can generate thousands of lines
+                    of code in minutes, but traditional security workflows
+                    were never designed for that speed.
+                </p>
+
+            </div>
+
+            <div class="card-grid">
+
+                <div class="card">
+
+                    <div class="card-number">01 / AI-GENERATED CODE</div>
+
+                    <h3>
+                        Code you didn't write
+                    </h3>
+
+                    <p>
+                        AI-generated code can introduce vulnerabilities,
+                        secrets, insecure dependencies, and unsafe patterns
+                        before anyone reviews the change.
+                    </p>
+
+                </div>
+
+                <div class="card">
+
+                    <div class="card-number">02 / AGENT ACCESS</div>
+
+                    <h3>
+                        Agents with real access
+                    </h3>
+
+                    <p>
+                        Coding agents can read files, execute commands,
+                        install packages, and modify repositories.
+                    </p>
+
+                </div>
+
+                <div class="card">
+
+                    <div class="card-number">03 / SECURITY DEBT</div>
+
+                    <h3>
+                        Security at human speed
+                    </h3>
+
+                    <p>
+                        Security teams cannot manually inspect every
+                        AI-generated change without becoming a bottleneck.
+                    </p>
+
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <!-- PLATFORM -->
+
+        <section class="platform" id="platform">
+
+            <div class="platform-layout">
+
+                <div class="platform-copy">
+
+                    <div class="section-label">
+                        The platform
+                    </div>
+
+                    <h2>
+                        A security checkpoint for AI coding agents.
+                    </h2>
+
+                    <p>
+                        AgentGuard sits between your AI coding agent and
+                        your codebase. Every proposed change is evaluated
+                        before it reaches production.
+                    </p>
+
+                    <div class="feature-list">
+
+                        <div class="feature">
+                            <span class="check">✓</span>
+                            <span>Hardcoded secret detection</span>
+                        </div>
+
+                        <div class="feature">
+                            <span class="check">✓</span>
+                            <span>Injection vulnerability analysis</span>
+                        </div>
+
+                        <div class="feature">
+                            <span class="check">✓</span>
+                            <span>Dependency vulnerability checks</span>
+                        </div>
+
+                        <div class="feature">
+                            <span class="check">✓</span>
+                            <span>Unsafe code pattern detection</span>
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+                <!-- FAKE DASHBOARD -->
+
+                <div class="dashboard">
+
+                    <div class="dashboard-header">
+                        <span>Security overview</span>
+                        <span class="status">● Protected</span>
+                    </div>
+
+                    <div class="vulnerability">
+
+                        <div class="vuln-info">
+                            <div class="severity"></div>
+
+                            <div>
+                                <div class="vuln-name">
+                                    SQL Injection
+                                </div>
+
+                                <div class="vuln-package">
+                                    api/users.py
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="fix">
+                            Fix available
+                        </div>
+
+                    </div>
+
+
+                    <div class="vulnerability">
+
+                        <div class="vuln-info">
+                            <div class="severity"></div>
+
+                            <div>
+                                <div class="vuln-name">
+                                    Hardcoded Secret
+                                </div>
+
+                                <div class="vuln-package">
+                                    config.js
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="fix">
+                            Blocked
+                        </div>
+
+                    </div>
+
+
+                    <div class="vulnerability">
+
+                        <div class="vuln-info">
+                            <div class="severity medium"></div>
+
+                            <div>
+                                <div class="vuln-name">
+                                    Vulnerable Dependency
+                                </div>
+
+                                <div class="vuln-package">
+                                    lodash@4.17.19
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="fix">
+                            Update
+                        </div>
+
+                    </div>
+
+
+                    <div class="vulnerability">
+
+                        <div class="vuln-info">
+                            <div class="severity low"></div>
+
+                            <div>
+                                <div class="vuln-name">
+                                    Security Check Passed
+                                </div>
+
+                                <div class="vuln-package">
+                                    auth/middleware.py
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="fix">
+                            Safe
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <!-- STATS -->
+
+        <section class="stats">
+
+            <div class="section-header">
+
+                <div class="section-label">
+                    Security at machine speed
+                </div>
+
+                <h2>
+                    Built for the pace of AI development.
+                </h2>
+
+            </div>
+
+            <div class="stats-grid">
+
+                <div class="stat">
+                    <div class="stat-number">100%</div>
+                    <div class="stat-title">
+                        Proposed changes checked
+                    </div>
+                    <p>
+                        Security validation before code is applied.
+                    </p>
+                </div>
+
+                <div class="stat">
+                    <div class="stat-number">&lt;1s</div>
+                    <div class="stat-title">
+                        Security feedback
+                    </div>
+                    <p>
+                        Designed to keep developers moving.
+                    </p>
+                </div>
+
+                <div class="stat">
+                    <div class="stat-number">24/7</div>
+                    <div class="stat-title">
+                        Continuous protection
+                    </div>
+                    <p>
+                        Security doesn't depend on a manual review.
+                    </p>
+                </div>
+
+                <div class="stat">
+                    <div class="stat-number">1</div>
+                    <div class="stat-title">
+                        Security layer
+                    </div>
+                    <p>
+                        One checkpoint across your AI workflow.
+                    </p>
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <!-- INTEGRATIONS -->
+
+        <section class="integrations" id="integrations">
+
+            <div class="section-header" style="margin-left:auto;margin-right:auto;">
+
+                <div class="section-label">
+                    Integrations
+                </div>
+
+                <h2>
+                    Works where developers already work.
+                </h2>
+
+                <p style="margin:auto;">
+                    Connect AgentGuard to the tools your engineering
+                    teams already use.
+                </p>
+
+            </div>
+
+            <div class="integration-grid">
+
+                <div class="integration">GitHub</div>
+                <div class="integration">GitLab</div>
+                <div class="integration">VS Code</div>
+                <div class="integration">Cursor</div>
+                <div class="integration">Claude Code</div>
+                <div class="integration">GitHub Copilot</div>
+                <div class="integration">Docker</div>
+                <div class="integration">CI / CD</div>
+
+            </div>
+
+        </section>
+
+
+        <!-- CTA -->
+
+        <section class="cta" id="demo">
+
+            <div class="section-label">
+                Start building securely
+            </div>
+
+            <h2>
+                Can you trust<br>
+                what your AI ships?
+            </h2>
+
+            <p>
+                Give your developers the speed of AI without sacrificing
+                the security of your codebase.
+            </p>
+
+            <a href="#" class="button button-primary">
+                Get started →
+            </a>
+
+        </section>
+
+    </main>
+
+
+    <!-- FOOTER -->
+
+    <footer id="resources">
+
+        <div>
+            © 2026 AgentGuard
+        </div>
+
+        <div class="footer-links">
+            <a href="#">Documentation</a>
+            <a href="#">GitHub</a>
+            <a href="#">Security</a>
+            <a href="#">Contact</a>
+        </div>
+
+    </footer>
+
+</body>
+</html>
+```

@@ -16,7 +16,7 @@ from pathlib import Path
 from ..config import Settings
 from ..explain.explainer import Explainer
 from ..explain.prioritize import prioritize
-from ..models import ExplainedFinding, Finding, Severity, Verdict
+from ..models import Decision, ExplainedFinding, Finding, Severity, Verdict
 from .diff import AddedLine, ParsedDiff, parse_unified_diff, synthesize_diff
 from .rules import DEPENDENCY_MANIFESTS, RULES, is_comment
 
@@ -200,7 +200,7 @@ class Guard:
         """For a proposed whole-file write, where there is no diff yet."""
         return self.review_diff(synthesize_diff(file, content), repo_root)
 
-    def _decide(self, explained: list[ExplainedFinding]) -> str:
+    def _decide(self, explained: list[ExplainedFinding]) -> Decision:
         worst = max((e.finding.severity.rank for e in explained), default=0)
         if worst >= self.block_at.rank:
             return "block"

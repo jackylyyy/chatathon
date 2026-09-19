@@ -58,6 +58,10 @@ class Severity(str, Enum):
 
 Category = Literal["dependency", "code", "secret", "license", "config"]
 
+# "allow" means a genuinely clean change, so a caller can trust the decision
+# without also inspecting the findings list.
+Decision = Literal["allow", "warn", "block"]
+
 
 class Finding(BaseModel):
     """One normalized security problem, wherever it came from."""
@@ -143,7 +147,7 @@ class ExplainedFinding(BaseModel):
 class Verdict(BaseModel):
     """What the guardrail decided about a proposed change."""
 
-    decision: Literal["allow", "warn", "block"] = "allow"
+    decision: Decision = "allow"
     findings: list[ExplainedFinding] = Field(default_factory=list)
     files_reviewed: list[str] = Field(default_factory=list)
     lines_reviewed: int = 0

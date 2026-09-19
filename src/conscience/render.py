@@ -6,7 +6,9 @@ debug view. Keep it calm: colour carries severity and nothing else.
 
 from __future__ import annotations
 
+import contextlib
 import json
+import sys
 
 from rich.console import Console, Group
 from rich.panel import Panel
@@ -17,7 +19,52 @@ from rich.text import Text
 from .explain.prioritize import triage_bucket
 from .models import ExplainedFinding, Severity, Verdict
 
+def _force_utf8() -> None:
+    """Windows consoles default to cp1252, which cannot encode the box-drawing
+    and spinner characters rich emits. Redirecting stdout (`> briefing.md`, or
+    any pipe) then raises UnicodeEncodeError mid-render. Ask for UTF-8 instead.
+    """
+    for stream in (sys.stdout, sys.stderr):
+        # Absent when the stream is captured, closed, or already wrapped -
+        # pytest and some CI runners both do this.
+        reconfigure = getattr(stream, "reconfigure", None)
+        if reconfigure is None:
+            continue
+        try:
+            reconfigure(encoding="utf-8", errors="replace")
+        except (OSError, ValueError):
+            pass
+
+
+_force_utf8()
+
 console = Console()
+
+# Diagnostics go to stderr so that `--format json` stays pipeable. Anything
+# written to stdout is the result; anything else is commentary.
+err_console = Console(stderr=True)
+
+
+def notice(message: str) -> None:
+    err_console.print(message)
+
+
+def error(message: str) -> None:
+    err_console.print(f"[red]{message}[/red]")
+
+
+@contextlib.contextmanager
+def status(message: str):
+    """A spinner, but only when there is a terminal to animate.
+
+    Under a redirect or a pipe the spinner has nothing to update, and its
+    braille frames are exactly the characters that break on a legacy encoding.
+    """
+    if not err_console.is_terminal:
+        yield None
+        return
+    with err_console.status(message) as spinner:
+        yield spinner
 
 SEVERITY_STYLE = {
     Severity.CRITICAL: "bold white on red",

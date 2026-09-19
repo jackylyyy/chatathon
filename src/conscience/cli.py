@@ -34,11 +34,11 @@ EXAMPLES = Path(__file__).resolve().parents[2] / "examples"
 def _settings(offline: bool) -> Settings:
     settings = Settings.from_env(offline=offline or None)
     if settings.offline:
-        render.console.print(
+        render.notice(
             "[dim]Running offline: explanations come from the built-in ruleset.[/dim]"
         )
     elif not has_credentials():
-        render.console.print(
+        render.notice(
             "[yellow]No ANTHROPIC_API_KEY found - falling back to built-in "
             "explanations. Set the key for the good ones.[/yellow]"
         )
@@ -64,10 +64,10 @@ def explain(
     try:
         findings, detected = load_findings(report)
     except FileNotFoundError:
-        render.console.print(f"[red]No such report: {report}[/red]")
+        render.error(f"No such report: {report}")
         raise typer.Exit(code=2)
     except UnknownReportFormat as exc:
-        render.console.print(f"[red]{exc}[/red]")
+        render.error(str(exc))
         raise typer.Exit(code=2)
 
     floor = Severity.parse(min_severity).rank
@@ -76,35 +76,37 @@ def explain(
     if limit > 0:
         findings = findings[:limit]
 
-    if not findings:
-        render.console.print("[green]Nothing at or above that severity. Good.[/green]")
-        return
+    if findings:
+        settings = _settings(offline)
+        with render.status(f"Explaining {len(findings)} finding(s)..."):
+            items = Explainer(settings).explain_all(findings, repo)
+    else:
+        # Still emit a valid empty document, so a consumer parsing our stdout
+        # does not have to special-case "clean".
+        render.notice("[green]Nothing at or above that severity. Good.[/green]")
+        items = []
 
-    settings = _settings(offline)
-    explainer = Explainer(settings)
-
-    with render.console.status(f"Explaining {len(findings)} finding(s)..."):
-        items = explainer.explain_all(findings, repo)
-
+    title = f"Security briefing ({detected})"
     if output_format == "json":
         payload = render.to_json(items)
     elif output_format in {"md", "markdown"}:
-        payload = render.to_markdown(items, title=f"Security briefing ({detected})")
+        payload = render.to_markdown(items, title=title)
     else:
         payload = None
 
     if payload is not None:
         if out:
             out.write_text(payload, encoding="utf-8")
-            render.console.print(f"[green]Wrote {out}[/green]")
+            render.notice(f"[green]Wrote {out}[/green]")
         else:
             print(payload)
         return
 
-    render.render_report(items, detail=not summary_only, source=detected)
+    if items:
+        render.render_report(items, detail=not summary_only, source=detected)
     if out:
-        out.write_text(render.to_markdown(items), encoding="utf-8")
-        render.console.print(f"[green]Also wrote {out}[/green]")
+        out.write_text(render.to_markdown(items, title=title), encoding="utf-8")
+        render.notice(f"[green]Also wrote {out}[/green]")
 
 
 @app.command()
@@ -142,17 +144,17 @@ def guard(
         _emit_verdict(verdict, output_format)
         raise typer.Exit(code=0 if verdict.ok else 1)
     else:
-        render.console.print("[red]Give me one of --diff, --file or --stdin.[/red]")
+        render.error("Give me one of --diff, --file or --stdin.")
         raise typer.Exit(code=2)
 
     if not diff_text.strip():
-        render.console.print(f"[yellow]Empty diff from {source}, nothing to review.[/yellow]")
+        render.notice(f"[yellow]Empty diff from {source}, nothing to review.[/yellow]")
         return
 
     settings = _settings(offline)
     guardrail = Guard(settings, block_at=Severity.parse(block_at), explain=not fast)
 
-    with render.console.status("Reviewing the proposed change..."):
+    with render.status("Reviewing the proposed change..."):
         verdict = guardrail.review_diff(diff_text, repo)
 
     _emit_verdict(verdict, output_format)
@@ -196,18 +198,18 @@ def demo(
     diff = EXAMPLES / "agent-change.diff"
 
     if not scan.exists() or not diff.exists():
-        render.console.print(f"[red]Examples not found under {EXAMPLES}[/red]")
+        render.error(f"Examples not found under {EXAMPLES}")
         raise typer.Exit(code=2)
 
     render.console.rule("[bold]1. Why This Matters - explaining a scan[/bold]")
     findings, detected = load_findings(scan)
     settings = _settings(offline)
-    with render.console.status("Explaining..."):
+    with render.status("Explaining..."):
         items = Explainer(settings).explain_all(findings)
     render.render_report(items, source=detected)
 
     render.console.rule("[bold]2. Agent Conscience - judging a proposed change[/bold]")
-    with render.console.status("Reviewing..."):
+    with render.status("Reviewing..."):
         verdict = Guard(settings).review_diff(diff.read_text(encoding="utf-8"))
     render.render_verdict(verdict)
 

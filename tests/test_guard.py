@@ -7,8 +7,9 @@ from conscience.models import Severity
 
 
 def rules_hit(source: str, filename: str = "app.py") -> set[str]:
+    """Which rule ids fire on `source`, treated as newly added lines."""
     findings, _ = scan_diff(synthesize_diff(filename, source))
-    return {f.rule_id for f in findings}
+    return {f.rule_id for f in findings if f.rule_id is not None}
 
 
 @pytest.mark.parametrize(

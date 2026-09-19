@@ -28,3 +28,12 @@ where = ["src"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["src"]
+
+[tool.pyright]
+# Point the type checker at the venv, so editors resolve anthropic/rich/typer
+# instead of marking every third-party import as unresolved.
+venvPath = "."
+venv = ".venv"
+extraPaths = ["src"]
+include = ["src", "tests"]
+typeCheckingMode = "basic"

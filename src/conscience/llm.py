@@ -44,15 +44,24 @@ class ClaudeClient:
     def unavailable_reason(self) -> str | None:
         return self._disabled_reason
 
-    def _ensure_client(self):
-        if self._client is not None:
-            return self._client
+    def _ensure_sdk(self):
+        """Import the SDK and build the client, as one failure surface.
+
+        Everything in here must raise LLMUnavailable, never ImportError - the
+        caller's whole fallback path is `except LLMUnavailable`.
+        """
         try:
             import anthropic
         except ImportError as exc:  # pragma: no cover - dependency is declared
             raise LLMUnavailable("the `anthropic` package is not installed") from exc
-        self._client = anthropic.Anthropic()
-        return self._client
+
+        if self._client is None:
+            try:
+                self._client = anthropic.Anthropic()
+            except Exception as exc:
+                raise LLMUnavailable(f"could not build the client: {exc}") from exc
+
+        return anthropic, self._client
 
     def structured(
         self,
@@ -66,9 +75,7 @@ class ClaudeClient:
         if not self.available:
             raise LLMUnavailable(self._disabled_reason or "model unavailable")
 
-        import anthropic
-
-        client = self._ensure_client()
+        anthropic, client = self._ensure_sdk()
         if not hasattr(client.messages, "parse"):
             raise LLMUnavailable(
                 "this version of the anthropic SDK has no messages.parse(); "
