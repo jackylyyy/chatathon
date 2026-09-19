@@ -169,6 +169,22 @@ def _emit_verdict(verdict, output_format: str) -> None:
 
 
 @app.command()
+def hook(
+    fast: bool = typer.Option(
+        False, "--fast", help="Rules only, no model call. Faster, less helpful feedback."
+    ),
+) -> None:
+    """Run as a Claude Code PreToolUse hook. Reads the tool call as JSON on stdin.
+
+    You do not run this by hand - Claude Code runs it for you once it is
+    registered in .claude/settings.json. See hooks/README.md.
+    """
+    from .hook import main as hook_main
+
+    raise typer.Exit(code=hook_main(["--fast"] if fast else []))
+
+
+@app.command()
 def rules() -> None:
     """List what the guardrail checks for."""
     table = Table(header_style="bold", expand=True)

@@ -183,10 +183,16 @@ RULES: list[Rule] = [
         id="code.shell-injection",
         name="Shell command built from a variable",
         severity=Severity.HIGH,
+        # The `[+%]\s*[A-Za-z_]` tail is doing real work: it means "an operator
+        # followed by a name", which catches `os.system("rm " + path)` but not
+        # the `+` inside a constant like `os.system("echo 1+1")`. The previous
+        # character class excluded quotes, so it silently missed the single
+        # most common form of this bug.
         pattern=_r(
             r"(subprocess\.(run|call|check_output|Popen)\([^)]*shell\s*=\s*True"
-            r"|os\.system\s*\(\s*[^'\")]*[+%f]"
-            r"|child_process\.exec(Sync)?\s*\(\s*[`\"'][^`\"']*\$\{)"
+            r"|os\.(system|popen)\s*\([^)]*([+%]\s*[A-Za-z_]|f['\"][^'\"]*\{|\.format\s*\()"
+            r"|child_process\.exec(Sync)?\s*\(\s*[`\"'][^`\"']*\$\{"
+            r"|child_process\.exec(Sync)?\s*\([^)]*\+\s*[A-Za-z_])"
         ),
         cwe=("CWE-78",),
         offline_explanation={
@@ -557,3 +563,20 @@ COMMENT_PREFIXES = ("#", "//", "*", "/*", "<!--", '"""', "'''")
 
 def is_comment(line: str) -> bool:
     return line.lstrip().startswith(COMMENT_PREFIXES)
+
+
+# A line that *defines* a pattern is describing dangerous code, not running it.
+# Without this, any file containing a security ruleset trips nearly every rule
+# it defines - this file matches its own eval/exec rule on the literal text
+# "exec(" inside a regex. Linters hit the same problem and solve it the same
+# way. Deliberately narrow: only a line that STARTS with a raw-string literal
+# (a continuation inside a multi-line pattern) or that names the regex module.
+# `cmd = r"rm -rf " + path` is still real code and is still caught.
+PATTERN_DEFINITION = re.compile(
+    r"""(^\s*(?:r|rb|br)['"]|\bre\.(?:compile|search|match|sub|findall)\s*\(|\bpattern\s*=)""",
+    re.IGNORECASE,
+)
+
+
+def is_pattern_definition(line: str) -> bool:
+    return bool(PATTERN_DEFINITION.search(line))

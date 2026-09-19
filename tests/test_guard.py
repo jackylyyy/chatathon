@@ -33,6 +33,34 @@ def test_rule_fires(source, expected):
 @pytest.mark.parametrize(
     "source",
     [
+        'os.system("rm " + user_path)',
+        'os.system(f"convert {name}.png out.png")',
+        'os.popen("cat " + filename)',
+        'os.system("tar xf {}".format(archive))',
+        "child_process.exec('ls ' + dir)",
+    ],
+)
+def test_shell_commands_built_from_a_variable_are_caught(source):
+    """The most common form of this bug - a string concatenated with a name.
+    An earlier regex excluded quotes and so missed every one of these."""
+    assert "code.shell-injection" in rules_hit(source)
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        'os.system("echo 1+1")',
+        'os.system("ls -la")',
+        'subprocess.run(["convert", path, out], check=True)',
+    ],
+)
+def test_constant_shell_commands_are_not_flagged(source):
+    assert "code.shell-injection" not in rules_hit(source)
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
         'api_key = os.environ["SERVICE_API_KEY"]',
         'password = "<your-password-here>"',
         'token = process.env.AUTH_TOKEN',
@@ -40,6 +68,24 @@ def test_rule_fires(source, expected):
 )
 def test_env_lookups_and_placeholders_are_not_flagged(source):
     assert "secret.hardcoded-credential" not in rules_hit(source)
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        r'    r"|child_process\.exec(Sync)?\s*\("',
+        r'PATTERN = re.compile(r"eval\s*\(")',
+        r'    pattern=_r(r"\b(eval|exec)\s*\("),',
+    ],
+)
+def test_regex_definitions_are_not_mistaken_for_the_code_they_describe(source):
+    """A ruleset describing dangerous code is not dangerous code. Without this
+    the tool blocks every edit to its own rules file."""
+    assert rules_hit(source) == set()
+
+
+def test_a_raw_string_that_is_still_real_code_is_still_caught():
+    assert "code.shell-injection" in rules_hit('cmd = os.system(r"rm " + path)')
 
 
 def test_comments_are_ignored():

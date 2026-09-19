@@ -18,7 +18,7 @@ from ..explain.explainer import Explainer
 from ..explain.prioritize import prioritize
 from ..models import Decision, ExplainedFinding, Finding, Severity, Verdict
 from .diff import AddedLine, ParsedDiff, parse_unified_diff, synthesize_diff
-from .rules import DEPENDENCY_MANIFESTS, RULES, is_comment
+from .rules import DEPENDENCY_MANIFESTS, RULES, is_comment, is_pattern_definition
 
 # Anything at or above this severity blocks the edit.
 DEFAULT_BLOCK_AT = Severity.HIGH
@@ -44,7 +44,7 @@ def scan_diff(diff_text: str) -> tuple[list[Finding], ParsedDiff]:
 
 def _scan_line(added: AddedLine) -> list[Finding]:
     text = added.text
-    if not text.strip() or is_comment(text):
+    if not text.strip() or is_comment(text) or is_pattern_definition(text):
         return []
 
     out: list[Finding] = []
