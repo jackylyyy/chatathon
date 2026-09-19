@@ -1,14 +1,20 @@
-# Running conscience as a Claude Code hook
+# Running sentinel as a Claude Code hook
 
 This is the piece that makes the guardrail real. Instead of a human
-remembering to run `conscience guard`, Claude Code runs it automatically
+remembering to run `sentinel guard`, Claude Code runs it automatically
 before every `Write` and `Edit`, and hands the explanation back to the agent
 when a change is refused.
 
-## It is already wired up
+## Wiring it up
 
-[`.claude/settings.json`](../.claude/settings.json) registers the hook for this
-project:
+Run this once per checkout:
+
+```bash
+sentinel install-hook
+```
+
+That writes a `PreToolUse` entry into
+[`.claude/settings.json`](../.claude/settings.json):
 
 ```json
 {
@@ -19,7 +25,7 @@ project:
         "hooks": [
           {
             "type": "command",
-            "command": "\"${CLAUDE_PROJECT_DIR}/.venv/bin/conscience\" hook --fast",
+            "command": "\"${CLAUDE_PROJECT_DIR}/.venv/Scripts/python.exe\" -m sentinel.hook --fast",
             "timeout": 30
           }
         ]
@@ -29,22 +35,23 @@ project:
 }
 ```
 
-**Restart Claude Code after adding this.** Hook configuration is captured at
+**Restart Claude Code after running it.** Hook configuration is captured at
 startup, so a newly-added hook does not fire in an already-running session.
 
-### On Windows
+### Why it is generated rather than committed
 
-Swap the path - the venv puts executables in `Scripts`, not `bin`, and they
-carry a `.exe` suffix:
+The interpreter lives at `.venv/bin/python` on macOS and Linux but
+`.venv\Scripts\python.exe` on Windows, and Claude Code's `command` is a single
+string with no OS switch in it. A committed settings file can only name one of
+them. `install-hook` writes the path of the interpreter that is running it,
+which is by definition the right one for the machine you are on.
 
-```json
-"command": "\"${CLAUDE_PROJECT_DIR}/.venv/Scripts/conscience.exe\" hook --fast"
-```
+This matters more than it looks: if the path is wrong the hook simply never
+fires - Claude Code does not report a missing hook command, so a silently
+unguarded session looks exactly like a clean one.
 
-There is no single string that works on both, so whichever platform the
-committed value does not match has to make this edit locally. If the path is
-wrong the hook simply never fires - Claude Code does not report a missing hook
-command, so a silently unguarded session looks exactly like a clean one.
+Re-running `install-hook` updates our entry in place rather than stacking
+duplicates, and leaves anyone else's hooks in the file alone.
 
 ## What happens
 
@@ -52,7 +59,7 @@ command, so a silently unguarded session looks exactly like a clean one.
 agent tries to Write a file
           │
           ▼
-  Claude Code pauses, sends the tool call to `conscience hook` as JSON
+  Claude Code pauses, sends the tool call to `sentinel hook` as JSON
           │
           ▼
   we reconstruct the file as it WILL be, diff it against what it IS,
@@ -76,7 +83,7 @@ The hook reads the same JSON Claude Code would send, so you can drive it by
 hand:
 
 ```bash
-printf '%s' '{"tool_name":"Write","cwd":".","tool_input":{"file_path":"api.py","content":"import os\nos.system(\"rm \" + user_input)\n"}}' | conscience hook --fast
+printf '%s' '{"tool_name":"Write","cwd":".","tool_input":{"file_path":"api.py","content":"import os\nos.system(\"rm \" + user_input)\n"}}' | sentinel hook --fast
 ```
 
 (`printf '%s'`, not `echo` - zsh's builtin `echo` expands the `\n` inside the
@@ -102,7 +109,7 @@ would turn the hook off.
 `tests/test_auth.py` is a fixture, not a leak. Without this exclusion the hook
 fires constantly on its own test suite, which is exactly the false-positive
 pattern that trains people to ignore security tools. The list is
-`EXCLUDED_DIRS` in [hook.py](../src/conscience/hook.py).
+`EXCLUDED_DIRS` in [hook.py](../src/sentinel/hook.py).
 
 **`--fast` by default.** The hook runs on every edit, so it uses the built-in
 rule explanations rather than calling the model. Drop `--fast` to have Claude
@@ -112,5 +119,5 @@ slower, and only when something is actually found.
 ## Turning it off
 
 Delete the `hooks` block from `.claude/settings.json`, or set the severity that
-blocks higher than anything the rules produce. `conscience rules` lists every
+blocks higher than anything the rules produce. `sentinel rules` lists every
 rule and its severity.

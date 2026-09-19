@@ -1,4 +1,4 @@
-# conscience
+# sentinel
 
 **Snyk secures the code that exists. We secure the moment it gets written — and the moment someone has to understand it.**
 
@@ -13,7 +13,7 @@ Snyk's four announced initiatives cluster around two things: agentic AI *writing
 1. **The moment before code is written.** Snyk's remediation agent fixes vulnerabilities after they exist. Nothing stops an AI coding assistant from introducing one in the first place, because the assistant doesn't know better at the moment it's typing.
 2. **Explainability for non-experts.** All four initiatives are built for security teams. Nothing helps an average developer understand *why* something is risky, in language they'd actually use.
 
-`conscience` is those two layers. It is not another scanner.
+`sentinel` is those two layers. It is not another scanner.
 
 ## What it does
 
@@ -27,19 +27,43 @@ Snyk's four announced initiatives cluster around two things: agentic AI *writing
                   └──────────────────────────────┘
 ```
 
-### 1. `conscience explain` — "Why This Matters"
+### 1. `sentinel explain` — "Why This Matters"
 
 Takes scan output — usually a wall of CVE IDs and severity scores — and turns each finding into: what it means in *this* codebase, a realistic attack scenario, and a prioritized fix path.
 
 The ranking is the part that matters. A scanner ranks by severity, which is a property of the vulnerability class. We re-rank by what the explanation revealed about *this instance*: how exploitable it actually is here, how much it would cost, and how cheap the fix is. That's what turns 40 findings into "fix these three today".
 
-### 2. `conscience guard` — "Agent Conscience"
+### 2. `sentinel guard` — "Agent Conscience"
 
 Runs **automatically, before an AI agent's edit is applied**, as a Claude Code hook. If the change introduces something dangerous, the edit never happens and the agent gets a plain-English explanation injected into its context — so it **self-corrects instead of just getting blocked**.
 
 A blocked edit with no explanation teaches an agent to try a variation. A blocked edit with a named safer pattern teaches it to write the right thing.
 
-See [hooks/README.md](hooks/README.md). It's already wired up in [.claude/settings.json](.claude/settings.json).
+One command wires it in: `sentinel install-hook`. See [hooks/README.md](hooks/README.md).
+
+---
+
+## Presenting this
+
+```bash
+python scripts/present.py
+```
+
+The whole story in five acts, paced by the presenter — press Enter to advance, so you talk over a still screen instead of a scrolling one. It opens on the raw scan report (the problem), moves through `explain` and `guard`, and **Act 4 pipes a real tool call into the real hook** and shows the denial plus the exact text the agent gets back.
+
+| Flag | |
+|---|---|
+| `--auto` | No pauses — for recording a screen capture. |
+| `--act N` | Start at act N, for picking the demo up midway. |
+| `--offline` | Never call the model. |
+
+It writes nothing to disk, so it is safe to run live and safe to re-run. `tests/test_present.py` drives every act end to end, because a demo script that breaks on stage is the one failure that actually costs something.
+
+For the landing page, serve the repo root and open <http://localhost:8080>:
+
+```bash
+python -m http.server 8080
+```
 
 ---
 
@@ -68,63 +92,67 @@ pip install -e ".[dev]"
 Then see both halves at once:
 
 ```bash
-conscience demo
+sentinel demo
 ```
 
 ### Explaining a scan report
 
 ```bash
-conscience explain examples/snyk-report.json
+sentinel explain examples/snyk-report.json
 ```
 
 ```bash
-conscience explain report.json --format md --out briefing.md
+sentinel explain report.json --format md --out briefing.md
 ```
 
 ```bash
-conscience explain report.json --min-severity high --summary
+sentinel explain report.json --min-severity high --summary
 ```
 
 ### Checking a change by hand
 
 ```bash
-conscience guard --diff examples/agent-change.diff
+sentinel guard --diff examples/agent-change.diff
 ```
 
 ```bash
-git diff | conscience guard --stdin
+git diff | sentinel guard --stdin
 ```
 
 ### Checking every AI edit automatically
 
-Already configured. **Restart Claude Code** so it picks up the hook, then ask it to write something unsafe — the edit gets refused and the agent is told why. Full details in [hooks/README.md](hooks/README.md).
+```bash
+sentinel install-hook
+```
+
+Run that once per checkout — it writes the interpreter path for *your* platform into `.claude/settings.json`, which a committed file cannot do for everyone at once. Then **restart Claude Code** so it picks up the hook, and ask it to write something unsafe: the edit gets refused and the agent is told why. Full details in [hooks/README.md](hooks/README.md).
 
 ### Seeing what the guardrail looks for
 
 ```bash
-conscience rules
+sentinel rules
 ```
 
 ## Credentials
 
 Put an `ANTHROPIC_API_KEY` in `.env` (see `.env.example`). **Without a key everything still runs** — it falls back to the hand-written explanation attached to each rule. That's deliberate: the demo must never hard-fail in front of judges, and the offline output is the floor the model-generated output has to beat.
 
-Model is `claude-opus-5`, set in [config.py](src/conscience/config.py).
+Model is `claude-opus-5`, set in [config.py](src/sentinel/config.py).
 
 ## Layout
 
 | Path | What's there |
 |---|---|
-| [models.py](src/conscience/models.py) | `Finding`, `Explanation`, `Verdict` — the shared vocabulary. **Read this first.** |
-| [explain/explainer.py](src/conscience/explain/explainer.py) | The core. Finding → Explanation, with offline fallback |
-| [explain/prompts.py](src/conscience/explain/prompts.py) | Where "explain it to a non-security developer" is enforced |
-| [explain/prioritize.py](src/conscience/explain/prioritize.py) | Re-ranking by real-world exploitability, not severity class |
-| [guard/rules.py](src/conscience/guard/rules.py) | 15 patterns, each with its own hand-written explanation |
-| [guard/diff.py](src/conscience/guard/diff.py) | Unified-diff parser — only added lines are judged |
-| [guard/engine.py](src/conscience/guard/engine.py) | Verdict + the feedback block injected into the agent |
-| [hook.py](src/conscience/hook.py) | The Claude Code PreToolUse integration |
-| [ingest/](src/conscience/ingest) | Snyk JSON and SARIF → `Finding`. Add a scanner in ~30 lines |
-| [llm.py](src/conscience/llm.py) | The only file that touches the Anthropic SDK |
+| [models.py](src/sentinel/models.py) | `Finding`, `Explanation`, `Verdict` — the shared vocabulary. **Read this first.** |
+| [explain/explainer.py](src/sentinel/explain/explainer.py) | The core. Finding → Explanation, with offline fallback |
+| [explain/prompts.py](src/sentinel/explain/prompts.py) | Where "explain it to a non-security developer" is enforced |
+| [explain/prioritize.py](src/sentinel/explain/prioritize.py) | Re-ranking by real-world exploitability, not severity class |
+| [guard/rules.py](src/sentinel/guard/rules.py) | 15 patterns, each with its own hand-written explanation |
+| [guard/diff.py](src/sentinel/guard/diff.py) | Unified-diff parser — only added lines are judged |
+| [guard/engine.py](src/sentinel/guard/engine.py) | Verdict + the feedback block injected into the agent |
+| [hook.py](src/sentinel/hook.py) | The Claude Code PreToolUse integration |
+| [ingest/](src/sentinel/ingest) | Snyk JSON and SARIF → `Finding`. Add a scanner in ~30 lines |
+| [llm.py](src/sentinel/llm.py) | The only file that touches the Anthropic SDK |
 
 Only added lines are ever judged — nobody is served by blocking an agent over a finding it didn't cause.
 
@@ -134,7 +162,7 @@ Only added lines are ever judged — nobody is served by blocking an agent over 
 pytest
 ```
 
-81 tests, no network required. `pyright` is clean.
+104 tests, no network required. `pyright` is clean.
 
 If VS Code shows red squiggles on `import typer` / `rich` / `anthropic`, it hasn't picked up the venv: run **Python: Select Interpreter** and choose `.venv`.
 

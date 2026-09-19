@@ -1,0 +1,8 @@
+{
+  "_comment": "A Claude Code PreToolUse payload, exactly as the hook receives it on stdin. An agent asked for a login endpoint has produced a hardcoded JWT secret and a concatenated SQL query. Used by scripts/present.py (Act 4) and runnable by hand: python -m sentinel.hook --fast < examples/agent-write.json",
+  "tool_name": "Write",
+  "tool_input": {
+    "file_path": "src/api/auth.py",
+    "content": "import jwt\nfrom .db import connection\n\nJWT_SECRET = \"dev-secret-change-me\"\n\n\ndef login(username, password):\n    cur = connection.cursor()\n    cur.execute(\"SELECT * FROM users WHERE name = '\" + username + \"'\")\n    return cur.fetchone()\n"
+  }
+}
