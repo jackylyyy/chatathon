@@ -1,1163 +1,1042 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AgentGuard — Secure AI Development</title>
-
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        :root {
-            --bg: #06111f;
-            --bg-light: #0b1b2e;
-            --card: #10243a;
-            --card-hover: #15304b;
-            --text: #f5f8fb;
-            --muted: #9aaabd;
-            --green: #00d084;
-            --green-dark: #00ad70;
-            --border: rgba(255,255,255,0.1);
-        }
-
-        html {
-            scroll-behavior: smooth;
-        }
-
-        body {
-            font-family: Inter, -apple-system, BlinkMacSystemFont,
-                "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            background: var(--bg);
-            color: var(--text);
-            line-height: 1.6;
-        }
-
-        a {
-            color: inherit;
-            text-decoration: none;
-        }
-
-        /* =========================
-           NAVIGATION
-        ========================= */
-
-        nav {
-            height: 76px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 0 6%;
-            border-bottom: 1px solid var(--border);
-            position: sticky;
-            top: 0;
-            z-index: 100;
-            background: rgba(6, 17, 31, 0.9);
-            backdrop-filter: blur(16px);
-        }
-
-        .logo {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            font-size: 21px;
-            font-weight: 800;
-            letter-spacing: -0.5px;
-        }
-
-        .logo-mark {
-            width: 30px;
-            height: 30px;
-            border-radius: 8px;
-            background: var(--green);
-            display: grid;
-            place-items: center;
-            color: #06111f;
-            font-size: 17px;
-            font-weight: 900;
-        }
-
-        .nav-links {
-            display: flex;
-            gap: 34px;
-            align-items: center;
-        }
-
-        .nav-links a {
-            color: #c2cfdd;
-            font-size: 14px;
-            transition: 0.2s;
-        }
-
-        .nav-links a:hover {
-            color: white;
-        }
-
-        .nav-actions {
-            display: flex;
-            align-items: center;
-            gap: 18px;
-        }
-
-        .login {
-            color: #c2cfdd;
-            font-size: 14px;
-        }
-
-        .nav-button {
-            background: var(--green);
-            color: #03140d;
-            padding: 10px 18px;
-            border-radius: 7px;
-            font-size: 14px;
-            font-weight: 700;
-        }
-
-        /* =========================
-           HERO
-        ========================= */
-
-        .hero {
-            min-height: 680px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            text-align: center;
-            padding: 110px 20px 100px;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .hero::before {
-            content: "";
-            position: absolute;
-            width: 700px;
-            height: 700px;
-            background: rgba(0, 208, 132, 0.08);
-            filter: blur(100px);
-            border-radius: 50%;
-            top: -300px;
-            left: 50%;
-            transform: translateX(-50%);
-        }
-
-        .hero-content {
-            max-width: 900px;
-            position: relative;
-            z-index: 2;
-        }
-
-        .eyebrow {
-            display: inline-block;
-            color: var(--green);
-            border: 1px solid rgba(0,208,132,0.35);
-            background: rgba(0,208,132,0.08);
-            padding: 7px 13px;
-            border-radius: 999px;
-            font-size: 12px;
-            font-weight: 700;
-            letter-spacing: 1px;
-            text-transform: uppercase;
-            margin-bottom: 28px;
-        }
-
-        .hero h1 {
-            font-size: clamp(52px, 7vw, 92px);
-            line-height: 0.98;
-            letter-spacing: -5px;
-            margin-bottom: 30px;
-        }
-
-        .hero h1 span {
-            color: var(--green);
-        }
-
-        .hero p {
-            max-width: 680px;
-            margin: auto;
-            color: var(--muted);
-            font-size: 19px;
-            line-height: 1.7;
-        }
-
-        .hero-buttons {
-            margin-top: 38px;
-            display: flex;
-            justify-content: center;
-            gap: 14px;
-        }
-
-        .button {
-            padding: 14px 23px;
-            border-radius: 7px;
-            font-size: 14px;
-            font-weight: 700;
-            transition: 0.2s;
-        }
-
-        .button-primary {
-            background: var(--green);
-            color: #03140d;
-        }
-
-        .button-primary:hover {
-            background: #13e493;
-            transform: translateY(-2px);
-        }
-
-        .button-secondary {
-            border: 1px solid var(--border);
-            background: rgba(255,255,255,0.03);
-        }
-
-        .button-secondary:hover {
-            background: rgba(255,255,255,0.07);
-        }
-
-        /* =========================
-           TERMINAL
-        ========================= */
-
-        .terminal {
-            max-width: 950px;
-            margin: -20px auto 120px;
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            overflow: hidden;
-            background: #071522;
-            box-shadow: 0 30px 80px rgba(0,0,0,0.35);
-        }
-
-        .terminal-top {
-            height: 42px;
-            display: flex;
-            align-items: center;
-            gap: 7px;
-            padding: 0 16px;
-            border-bottom: 1px solid var(--border);
-        }
-
-        .dot {
-            width: 9px;
-            height: 9px;
-            border-radius: 50%;
-            background: #536273;
-        }
-
-        .terminal-body {
-            padding: 28px;
-            text-align: left;
-            font-family: "SFMono-Regular", Consolas, monospace;
-            font-size: 13px;
-            color: #b8c8d8;
-        }
-
-        .terminal-line {
-            margin-bottom: 10px;
-        }
-
-        .terminal-green {
-            color: var(--green);
-        }
-
-        .terminal-red {
-            color: #ff6978;
-        }
-
-        .terminal-yellow {
-            color: #f6c85f;
-        }
-
-        /* =========================
-           SECTION
-        ========================= */
-
-        section {
-            padding: 110px 6%;
-        }
-
-        .section-header {
-            max-width: 760px;
-            margin-bottom: 55px;
-        }
-
-        .section-label {
-            color: var(--green);
-            font-size: 12px;
-            font-weight: 800;
-            letter-spacing: 1.5px;
-            text-transform: uppercase;
-            margin-bottom: 14px;
-        }
-
-        .section-header h2 {
-            font-size: clamp(38px, 5vw, 60px);
-            line-height: 1.05;
-            letter-spacing: -3px;
-            margin-bottom: 20px;
-        }
-
-        .section-header p {
-            color: var(--muted);
-            font-size: 17px;
-            max-width: 650px;
-        }
-
-        /* =========================
-           PROBLEM CARDS
-        ========================= */
-
-        .problems {
-            background: #081727;
-        }
-
-        .card-grid {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 18px;
-        }
-
-        .card {
-            background: var(--card);
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            padding: 30px;
-            transition: 0.25s;
-        }
-
-        .card:hover {
-            transform: translateY(-5px);
-            background: var(--card-hover);
-            border-color: rgba(0,208,132,0.3);
-        }
-
-        .card-number {
-            color: var(--green);
-            font-family: monospace;
-            font-size: 13px;
-            margin-bottom: 45px;
-        }
-
-        .card h3 {
-            font-size: 23px;
-            margin-bottom: 12px;
-        }
-
-        .card p {
-            color: var(--muted);
-            font-size: 14px;
-        }
-
-        /* =========================
-           PLATFORM
-        ========================= */
-
-        .platform {
-            background: var(--bg);
-        }
-
-        .platform-layout {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 70px;
-            align-items: center;
-        }
-
-        .platform-copy h2 {
-            font-size: 52px;
-            line-height: 1.05;
-            letter-spacing: -3px;
-            margin-bottom: 20px;
-        }
-
-        .platform-copy p {
-            color: var(--muted);
-            font-size: 17px;
-            margin-bottom: 30px;
-        }
-
-        .feature-list {
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
-        }
-
-        .feature {
-            display: flex;
-            gap: 14px;
-            padding: 16px;
-            border: 1px solid var(--border);
-            border-radius: 9px;
-            background: rgba(255,255,255,0.02);
-        }
-
-        .check {
-            color: var(--green);
-            font-weight: 900;
-        }
-
-        .dashboard {
-            border: 1px solid var(--border);
-            border-radius: 14px;
-            background: #0a1929;
-            padding: 20px;
-            box-shadow: 0 30px 80px rgba(0,0,0,0.25);
-        }
-
-        .dashboard-header {
-            display: flex;
-            justify-content: space-between;
-            padding-bottom: 18px;
-            border-bottom: 1px solid var(--border);
-            font-size: 13px;
-        }
-
-        .status {
-            color: var(--green);
-        }
-
-        .vulnerability {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 17px 5px;
-            border-bottom: 1px solid var(--border);
-        }
-
-        .vuln-info {
-            display: flex;
-            gap: 12px;
-            align-items: center;
-        }
-
-        .severity {
-            width: 9px;
-            height: 9px;
-            border-radius: 50%;
-            background: #ff5964;
-        }
-
-        .severity.medium {
-            background: #f5bd4f;
-        }
-
-        .severity.low {
-            background: var(--green);
-        }
-
-        .vuln-name {
-            font-size: 13px;
-        }
-
-        .vuln-package {
-            color: var(--muted);
-            font-size: 11px;
-        }
-
-        .fix {
-            font-size: 11px;
-            color: var(--green);
-            border: 1px solid rgba(0,208,132,0.3);
-            padding: 5px 9px;
-            border-radius: 5px;
-        }
-
-        /* =========================
-           STATS
-        ========================= */
-
-        .stats {
-            background: #081727;
-        }
-
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            border-top: 1px solid var(--border);
-            border-bottom: 1px solid var(--border);
-        }
-
-        .stat {
-            padding: 42px 30px;
-            border-right: 1px solid var(--border);
-        }
-
-        .stat:last-child {
-            border-right: none;
-        }
-
-        .stat-number {
-            font-size: 46px;
-            font-weight: 800;
-            letter-spacing: -2px;
-            color: var(--green);
-        }
-
-        .stat-title {
-            font-weight: 700;
-            margin-top: 8px;
-        }
-
-        .stat p {
-            color: var(--muted);
-            font-size: 13px;
-            margin-top: 5px;
-        }
-
-        /* =========================
-           INTEGRATIONS
-        ========================= */
-
-        .integrations {
-            text-align: center;
-        }
-
-        .integration-grid {
-            max-width: 950px;
-            margin: 50px auto 0;
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 12px;
-        }
-
-        .integration {
-            border: 1px solid var(--border);
-            border-radius: 9px;
-            padding: 25px;
-            color: #aab9c9;
-            font-weight: 700;
-            background: rgba(255,255,255,0.02);
-        }
-
-        .integration:hover {
-            color: white;
-            border-color: rgba(0,208,132,0.3);
-        }
-
-        /* =========================
-           CTA
-        ========================= */
-
-        .cta {
-            padding: 130px 20px;
-            text-align: center;
-            background:
-                radial-gradient(
-                    circle at center,
-                    rgba(0,208,132,0.12),
-                    transparent 55%
-                ),
-                #081727;
-        }
-
-        .cta h2 {
-            font-size: clamp(42px, 6vw, 70px);
-            letter-spacing: -4px;
-            line-height: 1;
-            margin-bottom: 22px;
-        }
-
-        .cta p {
-            color: var(--muted);
-            max-width: 600px;
-            margin: 0 auto;
-        }
-
-        .cta .button {
-            display: inline-block;
-            margin-top: 30px;
-        }
-
-        /* =========================
-           FOOTER
-        ========================= */
-
-        footer {
-            padding: 55px 6%;
-            border-top: 1px solid var(--border);
-            display: flex;
-            justify-content: space-between;
-            color: var(--muted);
-            font-size: 13px;
-        }
-
-        .footer-links {
-            display: flex;
-            gap: 25px;
-        }
-
-        .footer-links a:hover {
-            color: white;
-        }
-
-        /* =========================
-           RESPONSIVE
-        ========================= */
-
-        @media (max-width: 900px) {
-
-            .nav-links {
-                display: none;
-            }
-
-            .card-grid {
-                grid-template-columns: 1fr;
-            }
-
-            .platform-layout {
-                grid-template-columns: 1fr;
-            }
-
-            .stats-grid {
-                grid-template-columns: repeat(2, 1fr);
-            }
-
-            .stat:nth-child(2) {
-                border-right: none;
-            }
-
-            .integration-grid {
-                grid-template-columns: repeat(2, 1fr);
-            }
-        }
-
-        @media (max-width: 600px) {
-
-            nav {
-                padding: 0 20px;
-            }
-
-            .login {
-                display: none;
-            }
-
-            section {
-                padding: 80px 20px;
-            }
-
-            .hero {
-                padding: 90px 20px;
-            }
-
-            .hero h1 {
-                letter-spacing: -3px;
-            }
-
-            .hero-buttons {
-                flex-direction: column;
-            }
-
-            .stats-grid {
-                grid-template-columns: 1fr;
-            }
-
-            .stat {
-                border-right: none;
-                border-bottom: 1px solid var(--border);
-            }
-
-            .integration-grid {
-                grid-template-columns: 1fr;
-            }
-
-            footer {
-                flex-direction: column;
-                gap: 25px;
-            }
-        }
-    </style>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="description" content="Agent Conscience — a real-time guardrail that sits between your AI coding agent and your codebase. It intercepts unsafe diffs, explains the risk in natural language, and lets the agent self-correct before a single line lands." />
+<meta name="theme-color" content="#050507" />
+<title>Agent Conscience — Give your AI a conscience</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238b5cf6' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z'/><path d='m9 12 2 2 4-4'/></svg>" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+
+<style>
+/* ============================================================
+   TOKENS
+   ============================================================ */
+:root{
+  --background: 240 20% 5%;
+  --surface: 240 18% 7%;
+  --surface-2: 240 16% 9%;
+  --foreground: 240 14% 95%;
+  --muted: 240 8% 57%;
+  --primary: 262 83% 62%;
+  --primary-foreground: 0 0% 100%;
+  --accent: 184 100% 50%;
+  --destructive: 0 84% 62%;
+  --chart-4: 43 90% 64%;
+  --border: 240 20% 14%;
+  --radius: .75rem;
+
+  --font-heading:'Space Grotesk', ui-sans-serif, system-ui, sans-serif;
+  --font-body:'Inter', ui-sans-serif, system-ui, sans-serif;
+  --font-display:'Space Grotesk', ui-sans-serif, system-ui, sans-serif;
+  --font-mono:'JetBrains Mono', ui-monospace, monospace;
+
+  --neo-dark: 240 30% 3%;
+  --neo-light: 240 14% 14%;
+  --shadow-dark: hsl(var(--neo-dark));
+  --shadow-light: hsl(var(--neo-light));
+
+  --maxw: 1400px;
+}
+
+/* ============================================================
+   BASE
+   ============================================================ */
+*,*::before,*::after{ box-sizing:border-box; border:0 solid hsl(var(--border)); }
+html{ scroll-behavior:smooth; -webkit-text-size-adjust:100%; }
+body{
+  margin:0;
+  background-color:hsl(var(--background));
+  color:hsl(var(--foreground));
+  font-family:var(--font-body);
+  -webkit-font-smoothing:antialiased;
+  -moz-osx-font-smoothing:grayscale;
+  overflow-x:hidden;
+}
+::selection{ background:hsl(var(--primary)); color:#fff; }
+
+/* thin cyber scrollbars on the code panes */
+pre, .pat, .code{ scrollbar-width:thin; scrollbar-color:hsl(var(--border)) transparent; }
+pre::-webkit-scrollbar, .pat::-webkit-scrollbar{ height:6px; width:6px; }
+pre::-webkit-scrollbar-track, .pat::-webkit-scrollbar-track{ background:transparent; }
+pre::-webkit-scrollbar-thumb, .pat::-webkit-scrollbar-thumb{ background:hsl(var(--border)); border-radius:9999px; }
+pre::-webkit-scrollbar-thumb:hover, .pat::-webkit-scrollbar-thumb:hover{ background:hsl(var(--primary) / .6); }
+:focus-visible{ outline:2px solid hsl(var(--primary) / .6); outline-offset:3px; }
+h1,h2,h3{ margin:0; }
+p{ margin:0; }
+a{ color:inherit; text-decoration:none; }
+button{ font:inherit; color:inherit; background:none; cursor:pointer; }
+pre{ margin:0; }
+dl,dd,dt{ margin:0; }
+svg{ display:block; }
+img,svg{ max-width:100%; }
+
+/* ============================================================
+   TYPE / TEXT HELPERS
+   ============================================================ */
+.mono{ font-family:var(--font-mono); }
+.display{ font-family:var(--font-display); letter-spacing:-.04em; }
+.balance{ text-wrap:balance; }
+.muted{ color:hsl(var(--muted)); }
+.accent{ color:hsl(var(--accent)); }
+.violet{ color:hsl(var(--primary)); }
+.tnum{ font-variant-numeric:tabular-nums; }
+
+.text-glow-v{ text-shadow:0 0 18px hsl(262 83% 58% / .65); }
+.text-glow-c{ text-shadow:0 0 18px hsl(184 100% 50% / .6); }
+
+/* ============================================================
+   NEOMORPHISM
+   ============================================================ */
+.neo{ background:hsl(var(--surface)); box-shadow:10px 10px 24px var(--shadow-dark), -10px -10px 24px var(--shadow-light); }
+.neo-sm{ background:hsl(var(--surface)); box-shadow:6px 6px 14px var(--shadow-dark), -6px -6px 14px var(--shadow-light); }
+.neo-inset{ background:hsl(var(--surface)); box-shadow:inset 5px 5px 12px var(--shadow-dark), inset -5px -5px 12px var(--shadow-light); }
+.neo-flat{ background:hsl(var(--surface)); box-shadow:4px 4px 10px var(--shadow-dark), -4px -4px 10px var(--shadow-light); }
+.neo-raised{ background:linear-gradient(145deg, hsl(240 16% 9%), hsl(240 18% 6%)); box-shadow:14px 14px 30px var(--shadow-dark), -10px -10px 26px var(--shadow-light); }
+
+.glow-violet{ box-shadow:0 0 24px -4px hsl(262 83% 58% / .55), 0 0 60px -12px hsl(262 83% 58% / .35); }
+.glow-cyan{ box-shadow:0 0 24px -4px hsl(184 100% 50% / .5), 0 0 60px -12px hsl(184 100% 50% / .3); }
+
+/* ============================================================
+   BACKDROPS
+   ============================================================ */
+.scanlines{
+  background-image:repeating-linear-gradient(0deg,
+    hsl(240 20% 5% / 0) 0px, hsl(240 20% 5% / 0) 2px,
+    hsl(184 100% 50% / .04) 3px, hsl(240 20% 5% / 0) 4px);
+}
+.grid-bg{
+  background-image:linear-gradient(hsl(240 20% 14% / .4) 1px, transparent 1px),
+                   linear-gradient(90deg, hsl(240 20% 14% / .4) 1px, transparent 1px);
+  background-size:56px 56px;
+}
+.grid-bg-fine{
+  background-image:linear-gradient(hsl(240 20% 14% / .25) 1px, transparent 1px),
+                   linear-gradient(90deg, hsl(240 20% 14% / .25) 1px, transparent 1px);
+  background-size:28px 28px;
+}
+.layer{ position:absolute; inset:0; pointer-events:none; }
+.blob{ position:absolute; border-radius:9999px; pointer-events:none; filter:blur(120px); }
+
+/* ============================================================
+   ANIMATIONS
+   ============================================================ */
+@keyframes jitter{
+  0%{transform:translate(0,0)} 25%{transform:translate(-.5px,.5px)}
+  50%{transform:translate(.5px,-.3px)} 75%{transform:translate(-.3px,-.5px)}
+  100%{transform:translate(.4px,.4px)}
+}
+@keyframes blink{ 0%,49%{opacity:1} 50%,100%{opacity:0} }
+@keyframes float-y{ 0%,100%{transform:translateY(0)} 50%{transform:translateY(-10px)} }
+@keyframes scan-down{ 0%{top:0;opacity:0} 10%{opacity:1} 90%{opacity:1} 100%{top:100%;opacity:0} }
+@keyframes glow-pulse{ 0%,100%{opacity:.5} 50%{opacity:1} }
+
+.anim-blink{ animation:blink 1.1s steps(1) infinite; }
+.anim-float{ animation:float-y 6s ease-in-out infinite; }
+.anim-glow{ animation:glow-pulse 3s ease-in-out infinite; }
+
+/* CONSCIENCE OFF — the world destabilises */
+.conscience-off .stable{ animation:jitter .28s infinite steps(2); }
+.conscience-off .lens-glow{ opacity:0 !important; }
+.conscience-off .snap-grid{ transform:skewX(-.4deg) translateX(-2px); }
+
+@media (prefers-reduced-motion: reduce){
+  *,*::before,*::after{ animation-duration:.01ms !important; animation-iteration-count:1 !important; transition-duration:.01ms !important; }
+  html{ scroll-behavior:auto; }
+}
+
+/* ============================================================
+   LAYOUT PRIMITIVES
+   ============================================================ */
+.wrap{ position:relative; margin-inline:auto; max-width:var(--maxw); padding-inline:1.5rem; }
+.g12{ display:grid; grid-template-columns:repeat(12,minmax(0,1fr)); gap:1.5rem; }
+.section{ position:relative; padding-block:6rem; border-bottom:1px solid hsl(var(--border) / .6); }
+
+/* ============================================================
+   PULSE LINE
+   ============================================================ */
+.pulse-rail{ position:fixed; left:0; top:0; z-index:30; height:100vh; width:1px; pointer-events:none; }
+.pulse-rail .rail{ position:absolute; inset:0; background:linear-gradient(to bottom, transparent, hsl(var(--primary) / .4), transparent); }
+.pulse-rail .scan{ position:absolute; left:0; height:6rem; width:1px; background:hsl(var(--accent));
+  box-shadow:0 0 12px hsl(184 100% 50%); animation:scan-down 5s linear infinite; }
+
+/* ============================================================
+   NAV
+   ============================================================ */
+.nav{
+  position:sticky; top:0; z-index:40;
+  border-bottom:1px solid hsl(var(--border) / .6);
+  background:hsl(var(--background) / .7);
+  backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px);
+}
+.nav-in{ display:flex; height:4rem; align-items:center; justify-content:space-between; }
+.brand{ display:flex; align-items:center; gap:.75rem; }
+.brand-mark{ display:grid; place-items:center; height:2.25rem; width:2.25rem; border-radius:.5rem; color:hsl(var(--primary)); }
+.brand-text{ font-size:.875rem; font-weight:700; letter-spacing:-.04em; }
+.nav-links{ display:none; align-items:center; gap:2rem; }
+.nav-links a{ font-size:.75rem; color:hsl(var(--muted)); transition:color .2s; }
+.nav-links a:hover{ color:hsl(var(--foreground)); }
+.nav-right{ display:flex; align-items:center; gap:1rem; }
+
+.toggle{ display:flex; height:2.5rem; align-items:center; gap:.5rem; border-radius:9999px; padding-inline:.75rem; font-size:.75rem; transition:box-shadow .3s; }
+.toggle .tlabel{ font-family:var(--font-mono); white-space:nowrap; }
+.switch{ position:relative; height:1rem; width:1.75rem; border-radius:9999px; background:hsl(var(--muted) / .2); }
+.switch .knob{ position:absolute; top:.125rem; left:.125rem; height:.75rem; width:.75rem; border-radius:9999px; background:hsl(var(--muted)); transition:all .25s; }
+.toggle[aria-pressed="true"] .switch{ background:hsl(var(--primary) / .3); }
+.toggle[aria-pressed="true"] .knob{ left:.875rem; background:hsl(var(--accent)); box-shadow:0 0 24px -4px hsl(184 100% 50% / .5), 0 0 60px -12px hsl(184 100% 50% / .3); }
+
+.btn-primary{
+  border-radius:9999px; background:hsl(var(--primary)); color:hsl(var(--primary-foreground));
+  padding:.625rem 1.25rem; font-size:.75rem; font-weight:600;
+  box-shadow:0 0 24px -4px hsl(262 83% 58% / .55), 0 0 60px -12px hsl(262 83% 58% / .35);
+  transition:filter .2s, transform .2s;
+}
+.btn-primary:hover{ filter:brightness(1.1); }
+.nav .btn-primary{ display:none; }
+
+/* ============================================================
+   HERO
+   ============================================================ */
+.hero{ position:relative; overflow:hidden; border-bottom:1px solid hsl(var(--border) / .6); }
+.hero-in{ padding-block:5rem 6rem; }
+.hero-copy{ grid-column:span 12; }
+.pill{
+  display:inline-flex; align-items:center; gap:.5rem; margin-bottom:1.5rem;
+  border-radius:9999px; border:1px solid hsl(var(--border)); padding:.25rem .75rem;
+  font-size:11px; color:hsl(var(--muted)); line-height:1.5;
+}
+.h1{ font-size:clamp(2.75rem,8vw,4.5rem); font-weight:700; line-height:.95; }
+.hero-lede{ margin-top:2rem; max-width:36rem; font-size:1.125rem; line-height:1.7; color:hsl(var(--muted)); }
+.hero-lede .em{ color:hsl(var(--foreground)); }
+.hero-actions{ margin-top:2.5rem; display:flex; flex-wrap:wrap; align-items:center; gap:1rem; }
+.btn-neo{ border-radius:9999px; padding:.875rem 1.5rem; font-size:.875rem; font-weight:600; transition:transform .2s; }
+.btn-neo:hover{ transform:translateY(-2px); }
+.btn-ghost{ display:inline-flex; align-items:center; gap:.5rem; font-size:.875rem; color:hsl(var(--muted)); transition:color .2s; }
+.btn-ghost:hover{ color:hsl(var(--foreground)); }
+.btn-ghost:hover svg{ transform:translateY(2px); }
+.btn-ghost svg{ transition:transform .2s; }
+
+.stats{ margin-top:3.5rem; display:grid; max-width:32rem; grid-template-columns:repeat(3,minmax(0,1fr)); gap:1.5rem; }
+.stats dt{ font-family:var(--font-display); letter-spacing:-.04em; font-size:1.875rem; font-weight:700; color:hsl(var(--accent)); }
+.stats dd{ margin-top:.25rem; font-family:var(--font-mono); font-size:11px; line-height:1.3; color:hsl(var(--muted)); }
+
+.hero-panel{ grid-column:span 12; margin-top:2.5rem; transition:transform .4s; }
+.panel{ position:relative; overflow:hidden; border-radius:1rem; padding:.25rem; }
+.panel-bar{ display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid hsl(var(--border) / .6); padding:.625rem 1rem; }
+.dots{ display:flex; gap:.375rem; }
+.dots i{ height:.625rem; width:.625rem; border-radius:9999px; display:block; }
+.panel-code{ position:relative; }
+.code{
+  font-family:var(--font-mono); font-size:12.5px; line-height:1.7;
+  white-space:pre; overflow-x:auto; padding:1.5rem 1.25rem;
+}
+.code-raw{ color:hsl(var(--muted) / .6); filter:blur(2px); }
+.lens-glow{
+  position:absolute; inset-block:0; left:0; overflow:hidden;
+  width:50%; box-shadow:inset 0 0 40px hsl(184 100% 50% / .15);
+  transition:opacity .3s;
+}
+.lens-glow .code{ position:absolute; inset-block:0; left:0; color:hsl(var(--foreground)); }
+.lens-edge{ position:absolute; inset-block:0; right:0; width:1px; background:hsl(var(--accent));
+  box-shadow:0 0 24px -4px hsl(184 100% 50% / .5), 0 0 60px -12px hsl(184 100% 50% / .3); }
+.panel-foot{ border-top:1px solid hsl(var(--border) / .6); padding:.625rem 1rem; font-family:var(--font-mono); font-size:11px; color:hsl(var(--accent)); }
+.panel-note{ margin-top:.75rem; text-align:center; font-family:var(--font-mono); font-size:11px; color:hsl(var(--muted)); }
+
+/* ============================================================
+   SECTION HEADERS
+   ============================================================ */
+.eyebrow{ font-family:var(--font-mono); font-size:.75rem; color:hsl(var(--accent)); }
+.h2{ margin-top:1rem; font-size:clamp(2rem,4.5vw,3rem); font-weight:700; line-height:1.15; }
+.sec-lede{ font-size:1.125rem; line-height:1.7; color:hsl(var(--muted)); }
+
+/* ============================================================
+   CORRECTION STREAM
+   ============================================================ */
+.stream-body{ margin-top:4rem; display:grid; grid-template-columns:repeat(12,minmax(0,1fr)); gap:2rem; }
+.stream-rail{ grid-column:span 12; display:none; }
+.stream-rail .line{ position:relative; margin-left:.75rem; height:100%; width:1px; background:hsl(var(--border)); }
+.stream-rail .line span{ position:absolute; left:0; top:0; height:6rem; width:1px; background:hsl(var(--accent));
+  box-shadow:0 0 24px -4px hsl(184 100% 50% / .5); animation:scan-down 6s linear infinite; }
+.cases{ grid-column:span 12; display:flex; flex-direction:column; gap:4rem; }
+.case{ display:grid; grid-template-columns:repeat(12,minmax(0,1fr)); gap:1.5rem; scroll-margin-top:6rem; }
+.case-left{ grid-column:span 12; }
+.case-right{ grid-column:span 12; }
+.case-num{ margin-bottom:.75rem; font-family:var(--font-mono); font-size:.75rem; color:hsl(var(--muted)); }
+.verdict{ display:flex; align-items:flex-start; gap:.75rem; border-radius:.75rem; padding:1rem; transition:box-shadow .5s; }
+.verdict svg{ margin-top:2px; flex-shrink:0; color:hsl(var(--primary)); }
+.verdict .who{ font-family:var(--font-mono); font-size:11px; color:hsl(var(--accent)); }
+.verdict p{ margin-top:.375rem; font-size:.875rem; line-height:1.7; color:hsl(var(--foreground) / .9); }
+.verdict .pat{ margin-top:.75rem; border-radius:.375rem; background:hsl(var(--background) / .6); padding:.25rem .5rem;
+  font-family:var(--font-mono); font-size:10px; color:hsl(var(--muted)); overflow-x:auto; }
+.verdict .pat b{ font-weight:400; color:hsl(var(--accent) / .8); }
+.case.is-active .verdict{ box-shadow:0 0 24px -4px hsl(262 83% 58% / .55), 0 0 60px -12px hsl(262 83% 58% / .35); }
+
+.diff{ overflow:hidden; border-radius:1rem; }
+.diff-bar{ display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid hsl(var(--border) / .6); padding:.625rem 1rem; }
+.diff-bar .tag{ font-family:var(--font-mono); font-size:11px; color:hsl(var(--muted)); }
+.diff-bar .sev{ font-family:var(--font-mono); font-size:10px; text-transform:uppercase; color:hsl(var(--chart-4)); }
+.diff-bar .sev.critical{ color:hsl(var(--destructive)); }
+.diff-cols{ display:grid; grid-template-columns:1fr; }
+.diff-col{ min-width:0; }
+.diff-col.left{ border-bottom:1px solid hsl(var(--border) / .6); }
+.diff-label{ font-family:var(--font-mono); padding:.75rem 1rem 0; font-size:10px; }
+.diff-label.bad{ color:hsl(var(--destructive) / .8); }
+.diff-label.good{ color:hsl(var(--accent)); }
+.diff-code{ font-family:var(--font-mono); font-size:12.5px; line-height:1.7; padding:.75rem 1rem; overflow-x:auto;
+  transition:color .7s, text-decoration-color .7s; }
+.diff-code.bad{ color:hsl(var(--muted) / .5); }
+.diff-code.good{ color:hsl(var(--muted) / .4); }
+.case.is-active .diff-code.bad{ color:hsl(var(--destructive) / .8); text-decoration:line-through; text-decoration-color:hsl(var(--destructive) / .4); }
+.case.is-active .diff-code.good{ color:hsl(var(--accent)); }
+
+.explain{ margin-top:.75rem; }
+.explain-btn{
+  display:flex; width:100%; align-items:center; justify-content:space-between; gap:.5rem;
+  border-radius:.5rem; padding:.625rem .875rem; font-size:.75rem; font-weight:500;
+  color:hsl(var(--foreground) / .9); transition:transform .2s; text-align:left;
+}
+.explain-btn:hover{ transform:translateY(-2px); }
+.explain-btn .lbl{ display:flex; align-items:center; gap:.5rem; }
+.explain-btn .lbl svg{ color:hsl(var(--accent)); flex-shrink:0; }
+.explain-btn .chev{ color:hsl(var(--muted)); transition:transform .3s; flex-shrink:0; }
+.explain-btn[aria-expanded="true"] .chev{ transform:rotate(180deg); }
+.explain-panel{ display:grid; grid-template-rows:0fr; opacity:0; transition:grid-template-rows .3s, opacity .3s, margin-top .3s; }
+.explain-panel > div{ overflow:hidden; }
+.explain-btn[aria-expanded="true"] + .explain-panel{ grid-template-rows:1fr; opacity:1; margin-top:.5rem; }
+.explain-body{ border-radius:.5rem; padding:1rem; font-size:.875rem; line-height:1.7; }
+.explain-body .k{ font-family:var(--font-mono); font-size:10px; color:hsl(var(--accent)); }
+.explain-body p{ margin-top:.5rem; color:hsl(var(--foreground) / .85); }
+.case-foot{ margin-top:.75rem; display:flex; align-items:center; gap:.5rem; font-size:11px; color:hsl(var(--muted)); }
+.case-foot svg{ color:hsl(var(--accent)); flex-shrink:0; }
+
+/* ============================================================
+   LOGIC VAULT
+   ============================================================ */
+.vault-total{ border-radius:1rem; padding:1.25rem; }
+.vault-total .n{ font-family:var(--font-display); letter-spacing:-.04em; font-size:2.25rem; font-weight:700; color:hsl(var(--accent)); }
+.vault-total p{ margin-top:.25rem; font-family:var(--font-mono); font-size:11px; color:hsl(var(--muted)); }
+.vault-grid{ margin-top:3.5rem; display:grid; grid-template-columns:1fr; gap:1.25rem; }
+.sentinel{
+  position:relative; overflow:hidden; border-radius:1rem; padding:1.25rem; text-align:left;
+  transition:transform .3s, box-shadow .3s;
+}
+.sentinel:hover{ transform:translateY(-4px); }
+.sentinel .top{ display:flex; align-items:flex-start; justify-content:space-between; }
+.sentinel .ico{ display:grid; place-items:center; height:2.75rem; width:2.75rem; border-radius:.75rem; color:hsl(var(--primary)); }
+.sentinel .id{ font-family:var(--font-mono); font-size:10px; color:hsl(var(--muted)); }
+.sentinel h3{ margin-top:1rem; font-family:var(--font-display); letter-spacing:-.04em; font-size:1.125rem; font-weight:600; }
+.sentinel .desc{ margin-top:.25rem; font-size:13px; line-height:1.6; color:hsl(var(--muted)); }
+.sentinel .bottom{ margin-top:1.25rem; display:flex; align-items:flex-end; justify-content:space-between; gap:1rem; }
+.sentinel .count{ font-family:var(--font-display); letter-spacing:-.04em; font-size:1.875rem; font-weight:700; color:hsl(var(--accent)); font-variant-numeric:tabular-nums; }
+.sentinel .cap{ font-family:var(--font-mono); font-size:10px; color:hsl(var(--muted)); }
+.sentinel .reveal{ font-family:var(--font-mono); font-size:10px; color:hsl(var(--primary) / .7); transition:color .2s; white-space:nowrap; }
+.sentinel:hover .reveal{ color:hsl(var(--primary)); }
+.sentinel .pat-wrap{ display:grid; grid-template-rows:0fr; opacity:0; transition:grid-template-rows .3s, opacity .3s, margin-top .3s; }
+.sentinel .pat-wrap > div{ overflow:hidden; }
+.sentinel.open .pat-wrap{ grid-template-rows:1fr; opacity:1; margin-top:1rem; }
+.sentinel .pat{
+  font-family:var(--font-mono); border-radius:.5rem; border:1px solid hsl(var(--border) / .6);
+  background:hsl(var(--background) / .7); padding:.5rem .75rem; font-size:11px; line-height:1.7;
+  color:hsl(var(--accent) / .9); overflow-x:auto; white-space:pre;
+}
+.sentinel .halo{ position:absolute; right:-2rem; top:-2rem; height:6rem; width:6rem; border-radius:9999px;
+  background:hsl(var(--primary) / .1); filter:blur(24px); opacity:0; transition:opacity .3s; pointer-events:none; }
+.sentinel:hover .halo{ opacity:1; }
+.vault-note{ margin-top:2.5rem; text-align:center; font-family:var(--font-mono); font-size:11px; color:hsl(var(--muted)); }
+
+/* ============================================================
+   SILENT PROXY
+   ============================================================ */
+.proxy-grid{ margin-top:3.5rem; display:grid; grid-template-columns:repeat(12,minmax(0,1fr)); gap:1.5rem; }
+.proxy-left{ grid-column:span 12; }
+.proxy-right{ grid-column:span 12; display:flex; flex-direction:column; gap:1rem; }
+.graph-card{ border-radius:1rem; padding:1.5rem; }
+.graph-head{ display:flex; align-items:center; justify-content:space-between; gap:1rem; }
+.graph-head .who{ display:flex; align-items:center; gap:.5rem; font-family:var(--font-mono); font-size:.75rem; color:hsl(var(--muted)); }
+.graph-head .who svg{ color:hsl(var(--accent)); }
+.graph-head .delta{ font-family:var(--font-mono); font-size:10px; color:hsl(var(--accent)); }
+.graph-foot{ margin-top:.5rem; display:flex; align-items:center; justify-content:space-between; gap:.75rem;
+  font-family:var(--font-mono); font-size:10px; color:hsl(var(--muted)); }
+.agent-row{ display:flex; align-items:center; justify-content:space-between; gap:1rem; border-radius:1rem; padding:1.25rem; }
+.agent-row .l{ display:flex; align-items:center; gap:1rem; }
+.agent-row .ico{ display:grid; place-items:center; height:2.75rem; width:2.75rem; border-radius:.75rem; color:hsl(var(--primary)); }
+.agent-row .nm{ font-family:var(--font-display); letter-spacing:-.04em; font-size:1rem; font-weight:600; }
+.agent-row .sub{ font-family:var(--font-mono); font-size:11px; color:hsl(var(--muted)); }
+.agent-row .st{ display:flex; align-items:center; gap:.5rem; font-family:var(--font-mono); font-size:11px; color:hsl(var(--accent)); }
+.agent-row .st i{ height:.5rem; width:.5rem; border-radius:9999px; background:hsl(var(--accent)); display:block; }
+.config{ border-radius:1rem; padding:1.25rem; }
+.config .path{ font-family:var(--font-mono); font-size:11px; color:hsl(var(--muted)); }
+.config pre{ margin-top:.5rem; font-family:var(--font-mono); font-size:12px; line-height:1.7; color:hsl(var(--foreground) / .9); overflow-x:auto; }
+
+/* ============================================================
+   FOOTER / CTA
+   ============================================================ */
+.cta{ position:relative; min-height:70vh; overflow:hidden; }
+.cta-bg{ position:absolute; inset:0; opacity:0; transition:opacity .7s; }
+.cta.is-visible .cta-bg{ opacity:1; backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px); }
+.cta-in{ position:relative; display:flex; min-height:70vh; flex-direction:column; align-items:center; justify-content:center; text-align:center; }
+.cta-mark{ display:grid; place-items:center; height:4rem; width:4rem; border-radius:1rem; color:hsl(var(--primary));
+  opacity:.3; transition:opacity .7s, box-shadow .7s; }
+.cta.is-visible .cta-mark{ opacity:1; box-shadow:0 0 24px -4px hsl(262 83% 58% / .55), 0 0 60px -12px hsl(262 83% 58% / .35); animation:float-y 6s ease-in-out infinite; }
+.cta h2{ margin-top:2rem; font-size:clamp(2.75rem,9vw,4.5rem); font-weight:700; line-height:.95;
+  color:hsl(var(--muted) / .4); transition:color .7s; }
+.cta.is-visible h2{ color:hsl(var(--foreground)); }
+.cta .fade{ opacity:0; transition:opacity .7s; }
+.cta.is-visible .fade{ opacity:1; }
+.cta-lede{ margin-top:1.5rem; max-width:28rem; font-size:1.125rem; color:hsl(var(--muted)); }
+.cta-actions{ margin-top:2.5rem; display:flex; flex-wrap:wrap; align-items:center; justify-content:center; gap:1rem; }
+.cta-actions .btn-primary{ display:block; padding:.875rem 1.75rem; font-size:.875rem; }
+.cta-actions .btn-primary:hover{ transform:translateY(-2px); }
+.cta-actions .btn-neo{ padding:.875rem 1.75rem; }
+.foot{ margin-top:5rem; width:100%; border-top:1px solid hsl(var(--border) / .6); padding-top:2rem; }
+.foot-in{ display:flex; flex-direction:column; align-items:center; justify-content:space-between; gap:1.5rem; }
+.foot .a{ display:flex; align-items:center; gap:.75rem; flex-wrap:wrap; justify-content:center; }
+.foot .a .n{ font-family:var(--font-mono); font-size:.75rem; color:hsl(var(--muted)); }
+.foot .a .t{ font-family:var(--font-mono); font-size:10px; color:hsl(var(--muted) / .6); }
+.foot .social{ display:flex; align-items:center; gap:1.25rem; color:hsl(var(--muted)); }
+.foot .social a{ transition:color .2s; }
+.foot .social a:hover{ color:hsl(var(--foreground)); }
+.foot .c{ font-family:var(--font-mono); font-size:10px; color:hsl(var(--muted) / .6); }
+
+/* ============================================================
+   BREAKPOINTS
+   ============================================================ */
+@media (min-width:640px){
+  .nav .btn-primary{ display:block; }
+  .diff-cols{ grid-template-columns:1fr 1fr; }
+  .diff-col.left{ border-bottom:0; border-right:1px solid hsl(var(--border) / .6); }
+  .case-left{ grid-column:span 5; }
+  .case-right{ grid-column:span 7; }
+  .vault-grid{ grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .foot-in{ flex-direction:row; }
+}
+@media (min-width:1024px){
+  .nav-links{ display:flex; }
+  .hero-copy{ grid-column:span 7; }
+  .hero-panel{ grid-column:span 5; margin-top:0; }
+  .stream-rail{ display:block; grid-column:span 1; }
+  .cases{ grid-column:span 11; }
+  .vault-grid{ grid-template-columns:repeat(3,minmax(0,1fr)); }
+  .proxy-left{ grid-column:span 7; }
+  .proxy-right{ grid-column:span 5; }
+  .col-lg-4{ grid-column:span 4; }
+  .col-lg-6{ grid-column:span 6; }
+  .col-lg-7{ grid-column:span 7; }
+  .lede-stream{ grid-column:7 / span 7; align-self:end; }
+  .lede-proxy{ grid-column:span 5; align-self:end; }
+  .vault-total-wrap{ grid-column:8 / span 5; align-self:end; }
+}
+@media (max-width:1023px){
+  .sec-lede{ grid-column:span 12; }
+  .vault-total-wrap{ grid-column:span 12; }
+  .sec-head-l{ grid-column:span 12; }
+}
+</style>
 </head>
 
 <body>
 
-    <!-- NAVIGATION -->
+<!-- ============ PULSE LINE ============ -->
+<div class="pulse-rail" aria-hidden="true">
+  <div class="rail"></div>
+  <div class="scan"></div>
+</div>
 
-    <nav>
-        <a href="#" class="logo">
-            <div class="logo-mark">A</div>
-            AgentGuard
-        </a>
-
-        <div class="nav-links">
-            <a href="#platform">Platform</a>
-            <a href="#security">Security</a>
-            <a href="#integrations">Integrations</a>
-            <a href="#resources">Resources</a>
-        </div>
-
-        <div class="nav-actions">
-            <a href="#" class="login">Log in</a>
-            <a href="#demo" class="nav-button">Get started</a>
-        </div>
+<!-- ============ NAV ============ -->
+<header class="nav">
+  <div class="wrap nav-in">
+    <a href="#top" class="brand">
+      <span class="brand-mark neo-sm glow-violet" data-icon="shield-check" data-size="20"></span>
+      <span class="display brand-text">AGENT<span class="violet">·</span>CONSCIENCE</span>
+    </a>
+    <nav class="nav-links mono">
+      <a href="#stream">01 / Stream</a>
+      <a href="#vault">02 / Vault</a>
+      <a href="#proxy">03 / Proxy</a>
     </nav>
+    <div class="nav-right">
+      <button id="conscience-toggle" class="toggle neo-sm" aria-pressed="true">
+        <span id="toggle-icon" data-icon="shield-check" data-size="16" style="color:hsl(var(--accent))"></span>
+        <span class="tlabel" id="toggle-label">CONSCIENCE ON</span>
+        <span class="switch neo-inset"><span class="knob"></span></span>
+      </button>
+      <a href="#cta" class="btn-primary">Deploy proxy</a>
+    </div>
+  </div>
+</header>
 
+<main>
 
-    <!-- HERO -->
+<!-- ============ HERO ============ -->
+<section id="top" class="hero">
+  <div class="layer grid-bg" style="opacity:.4"></div>
+  <div class="layer scanlines" style="opacity:.6"></div>
+  <div class="blob" style="right:-10rem;top:2.5rem;height:34rem;width:34rem;background:hsl(var(--primary)/.2)"></div>
+  <div class="blob" style="left:-10rem;bottom:0;height:28rem;width:28rem;background:hsl(var(--accent)/.1)"></div>
 
-    <main>
+  <div class="wrap g12 hero-in">
+    <div class="hero-copy">
+      <div class="pill mono">
+        <span data-icon="sparkles" data-size="14" style="color:hsl(var(--accent))"></span>
+        A guardrail for the authoring moment — not post-hoc scanning
+      </div>
 
-        <section class="hero">
+      <h1 class="display stable balance h1">
+        Give your AI<br />
+        <span class="text-glow-v violet">a conscience</span><br />
+        <span style="color:hsl(var(--muted)/.7)">before</span> it ships.
+      </h1>
 
-            <div class="hero-content">
+      <p class="hero-lede">
+        Agent Conscience is a lightweight proxy that sits between your AI coding agent and your
+        codebase. Every suggested diff is refracted through a security ruleset — and the agent
+        gets a natural-language explanation injected back into its context, so it
+        <span class="em"> self-corrects instead of getting blocked.</span>
+      </p>
 
-                <div class="eyebrow">
-                    AI Security Infrastructure
-                </div>
+      <div class="hero-actions">
+        <a href="#stream" class="btn-neo neo-raised glow-violet">See it intercept a diff</a>
+        <a href="#vault" class="btn-ghost">Explore the ruleset <span data-icon="arrow-down" data-size="16"></span></a>
+      </div>
 
-                <h1>
-                    Let AI build.<br>
-                    <span>We keep it secure.</span>
-                </h1>
+      <dl class="stats">
+        <div><dt class="display text-glow-c">12ms</dt><dd>median interception latency</dd></div>
+        <div><dt class="display text-glow-c">0</dt><dd>secrets reach the repo</dd></div>
+        <div><dt class="display text-glow-c">∞</dt><dd>agents trained, not throttled</dd></div>
+      </dl>
+    </div>
 
-                <p>
-                    AgentGuard is an independent security layer that
-                    continuously validates AI-generated code before it
-                    reaches your codebase.
-                </p>
-
-                <div class="hero-buttons">
-                    <a href="#demo" class="button button-primary">
-                        Start securing your code
-                    </a>
-
-                    <a href="#platform" class="button button-secondary">
-                        Explore the platform →
-                    </a>
-                </div>
-
-            </div>
-
-        </section>
-
-
-        <!-- TERMINAL -->
-
-        <div class="terminal">
-
-            <div class="terminal-top">
-                <div class="dot"></div>
-                <div class="dot"></div>
-                <div class="dot"></div>
-            </div>
-
-            <div class="terminal-body">
-
-                <div class="terminal-line">
-                    <span class="terminal-green">$</span>
-                    agentguard scan --agent cursor
-                </div>
-
-                <div class="terminal-line">
-                    → Analyzing proposed changes...
-                </div>
-
-                <div class="terminal-line">
-                    → Checking dependencies...
-                </div>
-
-                <div class="terminal-line">
-                    → Checking secrets...
-                </div>
-
-                <div class="terminal-line">
-                    → Checking injection patterns...
-                </div>
-
-                <div class="terminal-line terminal-red">
-                    ✕ 2 security issues detected
-                </div>
-
-                <div class="terminal-line terminal-yellow">
-                    ⚠ Unsafe deserialization detected in api/user.py
-                </div>
-
-                <div class="terminal-line terminal-green">
-                    ✓ AI-generated fix available
-                </div>
-
-            </div>
-
+    <div class="hero-panel snap-grid" id="hero-panel">
+      <div class="panel neo-raised">
+        <div class="panel-bar">
+          <span class="mono" style="font-size:11px;color:hsl(var(--muted))">interception · live</span>
+          <span class="dots">
+            <i style="background:hsl(var(--destructive)/.7)"></i>
+            <i style="background:hsl(var(--chart-4)/.7)"></i>
+            <i style="background:hsl(var(--accent)/.7)"></i>
+          </span>
         </div>
-
-
-        <!-- PROBLEMS -->
-
-        <section class="problems" id="security">
-
-            <div class="section-header">
-
-                <div class="section-label">
-                    The problem
-                </div>
-
-                <h2>
-                    AI writes code faster than security teams can review it.
-                </h2>
-
-                <p>
-                    Modern development has introduced a new security
-                    bottleneck. AI agents can generate thousands of lines
-                    of code in minutes, but traditional security workflows
-                    were never designed for that speed.
-                </p>
-
-            </div>
-
-            <div class="card-grid">
-
-                <div class="card">
-
-                    <div class="card-number">01 / AI-GENERATED CODE</div>
-
-                    <h3>
-                        Code you didn't write
-                    </h3>
-
-                    <p>
-                        AI-generated code can introduce vulnerabilities,
-                        secrets, insecure dependencies, and unsafe patterns
-                        before anyone reviews the change.
-                    </p>
-
-                </div>
-
-                <div class="card">
-
-                    <div class="card-number">02 / AGENT ACCESS</div>
-
-                    <h3>
-                        Agents with real access
-                    </h3>
-
-                    <p>
-                        Coding agents can read files, execute commands,
-                        install packages, and modify repositories.
-                    </p>
-
-                </div>
-
-                <div class="card">
-
-                    <div class="card-number">03 / SECURITY DEBT</div>
-
-                    <h3>
-                        Security at human speed
-                    </h3>
-
-                    <p>
-                        Security teams cannot manually inspect every
-                        AI-generated change without becoming a bottleneck.
-                    </p>
-
-                </div>
-
-            </div>
-
-        </section>
-
-
-        <!-- PLATFORM -->
-
-        <section class="platform" id="platform">
-
-            <div class="platform-layout">
-
-                <div class="platform-copy">
-
-                    <div class="section-label">
-                        The platform
-                    </div>
-
-                    <h2>
-                        A security checkpoint for AI coding agents.
-                    </h2>
-
-                    <p>
-                        AgentGuard sits between your AI coding agent and
-                        your codebase. Every proposed change is evaluated
-                        before it reaches production.
-                    </p>
-
-                    <div class="feature-list">
-
-                        <div class="feature">
-                            <span class="check">✓</span>
-                            <span>Hardcoded secret detection</span>
-                        </div>
-
-                        <div class="feature">
-                            <span class="check">✓</span>
-                            <span>Injection vulnerability analysis</span>
-                        </div>
-
-                        <div class="feature">
-                            <span class="check">✓</span>
-                            <span>Dependency vulnerability checks</span>
-                        </div>
-
-                        <div class="feature">
-                            <span class="check">✓</span>
-                            <span>Unsafe code pattern detection</span>
-                        </div>
-
-                    </div>
-
-                </div>
-
-
-                <!-- FAKE DASHBOARD -->
-
-                <div class="dashboard">
-
-                    <div class="dashboard-header">
-                        <span>Security overview</span>
-                        <span class="status">● Protected</span>
-                    </div>
-
-                    <div class="vulnerability">
-
-                        <div class="vuln-info">
-                            <div class="severity"></div>
-
-                            <div>
-                                <div class="vuln-name">
-                                    SQL Injection
-                                </div>
-
-                                <div class="vuln-package">
-                                    api/users.py
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="fix">
-                            Fix available
-                        </div>
-
-                    </div>
-
-
-                    <div class="vulnerability">
-
-                        <div class="vuln-info">
-                            <div class="severity"></div>
-
-                            <div>
-                                <div class="vuln-name">
-                                    Hardcoded Secret
-                                </div>
-
-                                <div class="vuln-package">
-                                    config.js
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="fix">
-                            Blocked
-                        </div>
-
-                    </div>
-
-
-                    <div class="vulnerability">
-
-                        <div class="vuln-info">
-                            <div class="severity medium"></div>
-
-                            <div>
-                                <div class="vuln-name">
-                                    Vulnerable Dependency
-                                </div>
-
-                                <div class="vuln-package">
-                                    lodash@4.17.19
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="fix">
-                            Update
-                        </div>
-
-                    </div>
-
-
-                    <div class="vulnerability">
-
-                        <div class="vuln-info">
-                            <div class="severity low"></div>
-
-                            <div>
-                                <div class="vuln-name">
-                                    Security Check Passed
-                                </div>
-
-                                <div class="vuln-package">
-                                    auth/middleware.py
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="fix">
-                            Safe
-                        </div>
-
-                    </div>
-
-                </div>
-
-            </div>
-
-        </section>
-
-
-        <!-- STATS -->
-
-        <section class="stats">
-
-            <div class="section-header">
-
-                <div class="section-label">
-                    Security at machine speed
-                </div>
-
-                <h2>
-                    Built for the pace of AI development.
-                </h2>
-
-            </div>
-
-            <div class="stats-grid">
-
-                <div class="stat">
-                    <div class="stat-number">100%</div>
-                    <div class="stat-title">
-                        Proposed changes checked
-                    </div>
-                    <p>
-                        Security validation before code is applied.
-                    </p>
-                </div>
-
-                <div class="stat">
-                    <div class="stat-number">&lt;1s</div>
-                    <div class="stat-title">
-                        Security feedback
-                    </div>
-                    <p>
-                        Designed to keep developers moving.
-                    </p>
-                </div>
-
-                <div class="stat">
-                    <div class="stat-number">24/7</div>
-                    <div class="stat-title">
-                        Continuous protection
-                    </div>
-                    <p>
-                        Security doesn't depend on a manual review.
-                    </p>
-                </div>
-
-                <div class="stat">
-                    <div class="stat-number">1</div>
-                    <div class="stat-title">
-                        Security layer
-                    </div>
-                    <p>
-                        One checkpoint across your AI workflow.
-                    </p>
-                </div>
-
-            </div>
-
-        </section>
-
-
-        <!-- INTEGRATIONS -->
-
-        <section class="integrations" id="integrations">
-
-            <div class="section-header" style="margin-left:auto;margin-right:auto;">
-
-                <div class="section-label">
-                    Integrations
-                </div>
-
-                <h2>
-                    Works where developers already work.
-                </h2>
-
-                <p style="margin:auto;">
-                    Connect AgentGuard to the tools your engineering
-                    teams already use.
-                </p>
-
-            </div>
-
-            <div class="integration-grid">
-
-                <div class="integration">GitHub</div>
-                <div class="integration">GitLab</div>
-                <div class="integration">VS Code</div>
-                <div class="integration">Cursor</div>
-                <div class="integration">Claude Code</div>
-                <div class="integration">GitHub Copilot</div>
-                <div class="integration">Docker</div>
-                <div class="integration">CI / CD</div>
-
-            </div>
-
-        </section>
-
-
-        <!-- CTA -->
-
-        <section class="cta" id="demo">
-
-            <div class="section-label">
-                Start building securely
-            </div>
-
-            <h2>
-                Can you trust<br>
-                what your AI ships?
-            </h2>
-
-            <p>
-                Give your developers the speed of AI without sacrificing
-                the security of your codebase.
-            </p>
-
-            <a href="#" class="button button-primary">
-                Get started →
-            </a>
-
-        </section>
-
-    </main>
-
-
-    <!-- FOOTER -->
-
-    <footer id="resources">
-
-        <div>
-            © 2026 AgentGuard
+        <div class="panel-code">
+<pre class="code code-raw">// agent suggested
+app.post("/run", (req, res) =&gt; {
+  const code = req.body.expr;
+  const out  = eval(code);     // ⚠ eval on user input
+  res.json({ result: out });
+});</pre>
+          <div class="lens-glow" id="lens">
+<pre class="code">// conscience-corrected
+app.post("/run", (req, res) =&gt; {
+  const expr = String(req.body.expr ?? "");
+  const out  = safeEval(expr, allow); // sandboxed AST
+  res.json({ result: out });
+});</pre>
+            <div class="lens-edge"></div>
+          </div>
         </div>
-
-        <div class="footer-links">
-            <a href="#">Documentation</a>
-            <a href="#">GitHub</a>
-            <a href="#">Security</a>
-            <a href="#">Contact</a>
+        <div class="panel-foot">
+          ▸ move cursor across the diff — the conscience refracts the unsafe suggestion into a safe pattern<span class="anim-blink" style="margin-left:.25rem">▌</span>
         </div>
+      </div>
+      <p class="panel-note">CVE-class issues caught at the authoring moment · extends Snyk Malicious Code Defense</p>
+    </div>
+  </div>
+</section>
 
-    </footer>
+<!-- ============ CORRECTION STREAM ============ -->
+<section id="stream" class="section">
+  <div class="layer grid-bg-fine" style="opacity:.2"></div>
+  <div class="wrap">
+    <header class="g12">
+      <div class="sec-head-l col-lg-4">
+        <span class="eyebrow">02 — THE CORRECTION STREAM</span>
+        <h2 class="display h2 balance">
+          The agent doesn't get blocked.<br /><span class="violet text-glow-v">It gets taught.</span>
+        </h2>
+      </div>
+      <p class="sec-lede lede-stream">
+        Standard SAST throws an alert and stops the line. Agent Conscience injects a terminal-style
+        explanation back into the agent's own context — the reasoning, the risk, and a safer pattern.
+        The model rewrites the diff itself, so the fix is learned, not pasted.
+      </p>
+    </header>
 
+    <div class="stream-body">
+      <div class="stream-rail" aria-hidden="true"><div class="line"><span></span></div></div>
+      <div class="cases" id="cases"><!-- injected --></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ LOGIC VAULT ============ -->
+<section id="vault" class="section">
+  <div class="wrap">
+    <header class="g12">
+      <div class="sec-head-l col-lg-6">
+        <span class="eyebrow">03 — THE LOGIC VAULT</span>
+        <h2 class="display h2 balance">
+          Six active sentinels.<br /><span class="violet text-glow-v">One refractive filter.</span>
+        </h2>
+      </div>
+      <div class="vault-total-wrap">
+        <div class="vault-total neo-inset">
+          <div class="n text-glow-c tnum" id="vault-total">0</div>
+          <p>total interceptions · last 24h · across {claude-code, cursor, copilot}</p>
+        </div>
+      </div>
+    </header>
+
+    <div class="vault-grid" id="vault-grid"><!-- injected --></div>
+    <p class="vault-note">hover any sentinel to break the glass and reveal the raw pattern it matches against</p>
+  </div>
+</section>
+
+<!-- ============ SILENT PROXY ============ -->
+<section id="proxy" class="section">
+  <div class="layer grid-bg" style="opacity:.25"></div>
+  <div class="wrap">
+    <header class="g12">
+      <div class="sec-head-l col-lg-7">
+        <span class="eyebrow">04 — THE SILENT PROXY</span>
+        <h2 class="display h2 balance">
+          It drops into your workflow.<br /><span class="violet text-glow-v">Then it disappears.</span>
+        </h2>
+      </div>
+      <p class="sec-lede lede-proxy">
+        One config in your agent's tool layer. No new IDE, no context-switching. The proxy runs
+        silently and measures a single metric that matters: how fast your AI's code gets safer.
+      </p>
+    </header>
+
+    <div class="proxy-grid">
+      <div class="proxy-left">
+        <div class="graph-card neo-raised">
+          <div class="graph-head">
+            <div class="who"><span data-icon="activity" data-size="16"></span><span>safety_velocity.svg</span></div>
+            <span class="delta">▲ +37% week over week</span>
+          </div>
+          <div style="margin-top:1rem" id="velocity"></div>
+          <div class="graph-foot">
+            <span>week 1</span><span>interceptions ↓ · safe-first suggestions ↑</span><span>week 12</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="proxy-right" id="agents">
+        <!-- agent rows injected -->
+        <div class="config neo-inset">
+          <div class="path">~/.agent-conscience/config.toml</div>
+<pre>[proxy]
+listen = "127.0.0.1:7777"
+agents  = ["claude-code", "cursor", "copilot"]
+mode    = "explain-and-rewrite"</pre>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ CTA / FOOTER ============ -->
+<footer id="cta" class="cta">
+  <div class="cta-bg">
+    <div class="layer grid-bg" style="opacity:.3"></div>
+    <div class="blob" style="left:50%;top:50%;height:30rem;width:30rem;transform:translate(-50%,-50%);background:hsl(var(--primary)/.2);filter:blur(140px)"></div>
+  </div>
+
+  <div class="wrap cta-in">
+    <span class="cta-mark neo-sm" data-icon="shield-check" data-size="32"></span>
+    <h2 class="display balance">Give your AI<br /><span class="text-glow-v violet">a conscience.</span></h2>
+    <p class="cta-lede fade">Deploy the proxy in minutes. Watch your agent's code get safer on its own.</p>
+    <div class="cta-actions fade">
+      <a href="#top" class="btn-primary">Start intercepting diffs</a>
+      <a href="#vault" class="btn-neo neo-sm">Read the ruleset</a>
+    </div>
+
+    <div class="foot fade">
+      <div class="foot-in">
+        <div class="a">
+          <span class="n">AGENT·CONSCIENCE</span>
+          <span class="t">— a refractive filter for autonomous engineering</span>
+        </div>
+        <div class="social">
+          <a href="#" aria-label="GitHub" data-icon="github" data-size="16"></a>
+          <a href="#" aria-label="Twitter" data-icon="twitter" data-size="16"></a>
+          <a href="#" aria-label="LinkedIn" data-icon="linkedin" data-size="16"></a>
+        </div>
+        <div class="c">extends Snyk · Malicious Code Defense</div>
+      </div>
+    </div>
+  </div>
+</footer>
+
+</main>
+
+<script>
+(function () {
+  "use strict";
+
+  /* =========================================================
+     ICONS (lucide-style, inlined — no external dependency)
+     ========================================================= */
+  var ICONS = {
+    "shield-check": '<path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/>',
+    "shield-off": '<path d="m2 2 20 20"/><path d="M5 5a1 1 0 0 0-1 1v7c0 5 3.5 7.5 7.67 8.94a1 1 0 0 0 .67 0c1.2-.4 2.36-.99 3.4-1.76"/><path d="M18.83 15.17A10.6 10.6 0 0 0 20 13V6a1 1 0 0 0-1-1c-2 0-4.5-1.2-6.24-2.72a1.17 1.17 0 0 0-1.52 0"/>',
+    "sparkles": '<path d="m12 3-1.9 5.8a2 2 0 0 1-1.29 1.29L3 12l5.81 1.91a2 2 0 0 1 1.29 1.29L12 21l1.9-5.8a2 2 0 0 1 1.29-1.29L21 12l-5.81-1.91a2 2 0 0 1-1.29-1.29Z"/><path d="M5 3v4"/><path d="M19 17v4"/><path d="M3 5h4"/><path d="M17 19h4"/>',
+    "arrow-down": '<path d="M12 5v14"/><path d="m19 12-7 7-7-7"/>',
+    "arrow-right": '<path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>',
+    "terminal": '<path d="m4 17 6-6-6-6"/><path d="M12 19h8"/>',
+    "terminal-square": '<rect width="18" height="18" x="3" y="3" rx="2"/><path d="m7 11 2-2-2-2"/><path d="M11 13h4"/>',
+    "book-open": '<path d="M12 7v14"/><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/>',
+    "chevron-down": '<path d="m6 9 6 6 6-6"/>',
+    "key-round": '<path d="M2.59 17.41A2 2 0 0 0 2 18.83V21a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h1a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h.17a2 2 0 0 0 1.41-.59l.82-.81a6.5 6.5 0 1 0-4-4z"/><circle cx="16.5" cy="7.5" r=".6" fill="currentColor"/>',
+    "code-2": '<path d="m18 16 4-4-4-4"/><path d="m6 8-4 4 4 4"/><path d="m14.5 4-5 16"/>',
+    "binary": '<rect x="14" y="14" width="4" height="6" rx="2"/><rect x="6" y="4" width="4" height="6" rx="2"/><path d="M6 20h4"/><path d="M14 10h4"/><path d="M6 14h2v6"/><path d="M14 4h2v6"/>',
+    "package-open": '<path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/><path d="m7.5 4.27 9 5.15"/>',
+    "network": '<rect x="16" y="16" width="6" height="6" rx="1"/><rect x="2" y="16" width="6" height="6" rx="1"/><rect x="9" y="2" width="6" height="6" rx="1"/><path d="M5 16v-3a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v3"/><path d="M12 12V8"/>',
+    "file-lock-2": '<path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M4 6V4a2 2 0 0 1 2-2h8l6 6v2"/><path d="M20 15v5a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-5"/><rect width="20" height="5" x="2" y="10" rx="1"/>',
+    "activity": '<path d="M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a.25.25 0 0 1-.48 0L9.24 2.18a.25.25 0 0 0-.48 0l-2.35 8.36A2 2 0 0 1 4.49 12H2"/>',
+    "cpu": '<rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><path d="M15 2v2"/><path d="M15 20v2"/><path d="M2 15h2"/><path d="M2 9h2"/><path d="M20 15h2"/><path d="M20 9h2"/><path d="M9 2v2"/><path d="M9 20v2"/>',
+    "bot": '<path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/>',
+    "github": '<path d="M15 22v-4a4.8 4.8 0 0 0-1-3.5c3 0 6-2 6-5.5.08-1.25-.27-2.48-1-3.5.28-1.15.28-2.35 0-3.5 0 0-1 0-3 1.5-2.64-.5-5.36-.5-8 0C6 2 5 2 5 2c-.3 1.15-.3 2.35 0 3.5A5.4 5.4 0 0 0 4 9c0 3.5 3 5.5 6 5.5-.39.49-.68 1.05-.85 1.65-.17.6-.22 1.23-.15 1.85v4"/><path d="M9 18c-4.51 2-5-2-7-2"/>',
+    "twitter": '<path d="M22 4s-.7 2.1-2 3.4c1.6 10-9.4 17.3-18 11.6 2.2.1 4.4-.6 6-2C3 15.5.5 9.6 3 5c2.2 2.6 5.6 4.1 9 4-.9-4.2 4-6.6 7-3.8 1.1 0 3-1.2 3-1.2z"/>',
+    "linkedin": '<path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-4 0v7h-4v-7a6 6 0 0 1 6-6z"/><rect width="4" height="12" x="2" y="9"/><circle cx="4" cy="4" r="2"/>'
+  };
+
+  function icon(name, size) {
+    size = size || 20;
+    return '<svg xmlns="http://www.w3.org/2000/svg" width="' + size + '" height="' + size +
+      '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" ' +
+      'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + (ICONS[name] || "") + "</svg>";
+  }
+
+  function paintIcons(root) {
+    (root || document).querySelectorAll("[data-icon]").forEach(function (el) {
+      el.innerHTML = icon(el.getAttribute("data-icon"), parseInt(el.getAttribute("data-size"), 10) || 20);
+    });
+  }
+
+  function esc(s) {
+    return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  }
+
+  /* =========================================================
+     NAV — the conscience toggle
+     ========================================================= */
+  (function nav() {
+    var btn = document.getElementById("conscience-toggle");
+    var lbl = document.getElementById("toggle-label");
+    var ico = document.getElementById("toggle-icon");
+    var on = true;
+
+    function render() {
+      document.documentElement.classList.toggle("conscience-off", !on);
+      btn.setAttribute("aria-pressed", on ? "true" : "false");
+      lbl.textContent = on ? "CONSCIENCE ON" : "CONSCIENCE OFF";
+      ico.innerHTML = icon(on ? "shield-check" : "shield-off", 16);
+      ico.style.color = on ? "hsl(var(--accent))" : "hsl(var(--destructive))";
+    }
+    btn.addEventListener("click", function () { on = !on; render(); });
+    render();
+  })();
+
+  /* =========================================================
+     HERO — the refraction lens
+     ========================================================= */
+  (function hero() {
+    var panel = document.getElementById("hero-panel");
+    var lens = document.getElementById("lens");
+    if (!panel || !lens) return;
+
+    function set(clientX) {
+      var r = panel.getBoundingClientRect();
+      var x = ((clientX - r.left) / r.width) * 100;
+      lens.style.width = Math.max(0, Math.min(100, x)) + "%";
+    }
+    panel.addEventListener("mousemove", function (e) { set(e.clientX); });
+    panel.addEventListener("touchmove", function (e) {
+      if (e.touches && e.touches[0]) set(e.touches[0].clientX);
+    }, { passive: true });
+  })();
+
+  /* =========================================================
+     CORRECTION STREAM
+     ========================================================= */
+  var CASES = [
+    {
+      tag: "INJECTION · eval()",
+      severity: "critical",
+      unsafe: 'const out = eval(req.body.expr);',
+      safe: 'const out = safeEval(req.body.expr, allowList);',
+      conscience: "This uses eval() on user input, which enables arbitrary code injection. I replaced it with a sandboxed AST evaluator bound to an allow-list — same ergonomics, no code execution surface.",
+      plain: "eval() takes whatever text you give it and runs it as real code. If that text comes from a user (like a form field or API request), a stranger can type instructions that your server will happily execute — things like \u201Cdelete the database\u201D, \u201Csend me everyone's passwords\u201D, or \u201Cinstall a backdoor\u201D. It's the digital equivalent of handing a stranger your keyboard. We swap it for a locked-down checker that only understands a tiny, safe list of operations, so no one can sneak in commands.",
+      pattern: "/\\beval\\s*\\(/"
+    },
+    {
+      tag: "SECRETS · hardcoded credential",
+      severity: "high",
+      unsafe: 'const TOKEN = "ghp_9aK3f2...";  // agent wrote it',
+      safe: 'const TOKEN = process.env.GITHUB_TOKEN;',
+      conscience: "A live credential was embedded in source. I moved it to an environment variable and flagged the exposed token for rotation — it should be treated as compromised.",
+      plain: "A password or access key was typed directly into the code. The moment that code is saved — to GitHub, to a build log, to a shared screenshot — that key is out in the open. Anyone who sees it can pretend to be you: reading private repos, sending messages from your account, or running up cloud bills in your name. We move secrets into hidden environment settings instead, and treat the leaked key as already stolen (rotate it immediately).",
+      pattern: "/(api|token|secret|password)\\s*=\\s*[\"'][^\"']{8,}/"
+    },
+    {
+      tag: "DESERIALIZATION · pickle",
+      severity: "critical",
+      unsafe: 'obj = pickle.loads(request.data)',
+      safe: 'obj = json.loads(request.data)  # schema-validated',
+      conscience: "pickle.loads can execute arbitrary code during deserialization. I switched to JSON with a validated schema — untrusted input must never cross an object-graph boundary that runs code.",
+      plain: "Some file formats don't just store data — they can also carry hidden instructions that run the moment the file is opened. pickle and unsafe YAML are like that: a crafted file can say \u201Cwhile you're reading me, also run this command.\u201D An attacker emails or uploads one of these files, your app opens it, and the damage is done before anything looks wrong. JSON is just plain data with no hidden commands, so we use that instead and double-check its shape.",
+      pattern: "/pickle\\.loads|yaml\\.load\\(.*Loader\\)/"
+    }
+  ];
+
+  (function stream() {
+    var host = document.getElementById("cases");
+    if (!host) return;
+
+    host.innerHTML = CASES.map(function (c, i) {
+      var num = String(i + 1).padStart(2, "0");
+      return '' +
+      '<article class="case" data-index="' + i + '">' +
+        '<div class="case-left">' +
+          '<div class="case-num">CASE ' + num + '</div>' +
+          '<div class="verdict neo-inset">' +
+            '<span data-icon="terminal" data-size="20"></span>' +
+            '<div>' +
+              '<div class="who">agent_conscience ▸</div>' +
+              '<p>' + esc(c.conscience) + '</p>' +
+              '<div class="pat">pattern: <b>' + esc(c.pattern) + '</b></div>' +
+            '</div>' +
+          '</div>' +
+        '</div>' +
+        '<div class="case-right">' +
+          '<div class="diff neo-raised">' +
+            '<div class="diff-bar">' +
+              '<span class="tag">' + esc(c.tag) + '</span>' +
+              '<span class="sev ' + (c.severity === "critical" ? "critical" : "") + '">● ' + esc(c.severity) + '</span>' +
+            '</div>' +
+            '<div class="diff-cols">' +
+              '<div class="diff-col left">' +
+                '<div class="diff-label bad">— agent suggestion</div>' +
+                '<pre class="diff-code bad">' + esc(c.unsafe) + '</pre>' +
+              '</div>' +
+              '<div class="diff-col">' +
+                '<div class="diff-label good">+ conscience-corrected</div>' +
+                '<pre class="diff-code good">' + esc(c.safe) + '</pre>' +
+              '</div>' +
+            '</div>' +
+          '</div>' +
+          '<div class="explain">' +
+            '<button class="explain-btn neo-flat" aria-expanded="false">' +
+              '<span class="lbl"><span data-icon="book-open" data-size="16"></span>' +
+                '<span class="explain-text">Explain this like I\'m new to security</span></span>' +
+              '<span class="chev" data-icon="chevron-down" data-size="16"></span>' +
+            '</button>' +
+            '<div class="explain-panel"><div>' +
+              '<div class="explain-body neo-inset">' +
+                '<span class="k">why this matters in the real world</span>' +
+                '<p>' + esc(c.plain) + '</p>' +
+              '</div>' +
+            '</div></div>' +
+          '</div>' +
+          '<div class="case-foot">' +
+            '<span data-icon="arrow-right" data-size="14"></span>' +
+            'agent rewrites the diff and resubmits — no human in the loop required' +
+          '</div>' +
+        '</div>' +
+      '</article>';
+    }).join("");
+
+    // plain-English accordions
+    host.querySelectorAll(".explain-btn").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        var open = btn.getAttribute("aria-expanded") === "true";
+        btn.setAttribute("aria-expanded", open ? "false" : "true");
+        btn.querySelector(".explain-text").textContent = open
+          ? "Explain this like I'm new to security"
+          : "Hide plain-English explanation";
+      });
+    });
+
+    // scroll-activated diff highlighting — the case nearest the viewport
+    // centre wins, which stays correct even when a card is taller than the
+    // screen (an IntersectionObserver ratio threshold can never resolve there).
+    var cards = Array.prototype.slice.call(host.querySelectorAll(".case"));
+    var queued = false;
+
+    function activate() {
+      queued = false;
+      var mid = window.innerHeight / 2;
+      var best = null, bestDist = Infinity;
+      cards.forEach(function (c) {
+        var r = c.getBoundingClientRect();
+        if (r.bottom < 0 || r.top > window.innerHeight) return;
+        var d = Math.abs((r.top + r.bottom) / 2 - mid);
+        if (d < bestDist) { bestDist = d; best = c; }
+      });
+      cards.forEach(function (c) { c.classList.toggle("is-active", c === best); });
+    }
+
+    function schedule() {
+      if (queued) return;
+      queued = true;
+      window.requestAnimationFrame(activate);
+    }
+
+    window.addEventListener("scroll", schedule, { passive: true });
+    window.addEventListener("resize", schedule);
+    activate();
+  })();
+
+  /* =========================================================
+     LOGIC VAULT
+     ========================================================= */
+  var SENTINELS = [
+    { id: "SEC-01", name: "Hardcoded Secrets", icon: "key-round", count: 1284,
+      pattern: "/(?:api|token|secret|password|key)\\s*=\\s*[\"'][^\"']{8,}/",
+      desc: "Live credentials embedded in source or config." },
+    { id: "SEC-02", name: "Code Injection", icon: "code-2", count: 642,
+      pattern: "/\\beval\\s*\\(|new Function\\s*\\(|child_process\\.exec/",
+      desc: "User input crossing an execution boundary." },
+    { id: "SEC-03", name: "Unsafe Deserialization", icon: "binary", count: 318,
+      pattern: "/pickle\\.loads|yaml\\.load\\(|unserialize/",
+      desc: "Object graphs that execute code on load." },
+    { id: "SEC-04", name: "Vulnerable Dependencies", icon: "package-open", count: 2107,
+      pattern: "/\"(\\w+)\":\\s*\"(\\d+\\.\\d+\\.\\d+)\"/",
+      desc: "Pinned versions matching known CVE advisories." },
+    { id: "SEC-05", name: "SSRF / Open Redirect", icon: "network", count: 471,
+      pattern: "/fetch\\(|axios\\.(get|post)|redirect/",
+      desc: "Unvalidated URLs passed to outbound requests." },
+    { id: "SEC-06", name: "Path Traversal", icon: "file-lock-2", count: 389,
+      pattern: "/\\.\\.\\/|path\\.join\\(|readFileSync/",
+      desc: "User-controlled segments reaching the filesystem." }
+  ];
+
+  (function vault() {
+    var grid = document.getElementById("vault-grid");
+    var totalEl = document.getElementById("vault-total");
+    if (!grid) return;
+
+    grid.innerHTML = SENTINELS.map(function (s) {
+      return '' +
+      '<button class="sentinel neo" type="button" aria-expanded="false">' +
+        '<span class="halo"></span>' +
+        '<div class="top">' +
+          '<span class="ico neo-sm" data-icon="' + s.icon + '" data-size="20"></span>' +
+          '<span class="id">' + s.id + '</span>' +
+        '</div>' +
+        '<h3>' + esc(s.name) + '</h3>' +
+        '<p class="desc">' + esc(s.desc) + '</p>' +
+        '<div class="bottom">' +
+          '<div>' +
+            '<div class="count text-glow-c">' + s.count.toLocaleString() + '</div>' +
+            '<div class="cap">interceptions · today</div>' +
+          '</div>' +
+          '<span class="reveal">reveal pattern</span>' +
+        '</div>' +
+        '<div class="pat-wrap"><div><div class="pat">' + esc(s.pattern) + '</div></div></div>' +
+      '</button>';
+    }).join("");
+
+    grid.querySelectorAll(".sentinel").forEach(function (card) {
+      var label = card.querySelector(".reveal");
+      var pinned = false;
+      function paint(open) {
+        card.classList.toggle("open", open);
+        card.setAttribute("aria-expanded", open ? "true" : "false");
+        label.textContent = open ? "hide pattern" : "reveal pattern";
+      }
+      card.addEventListener("mouseenter", function () { if (!pinned) paint(true); });
+      card.addEventListener("mouseleave", function () { if (!pinned) paint(false); });
+      card.addEventListener("click", function () { pinned = !pinned; paint(pinned); });
+    });
+
+    var total = SENTINELS.reduce(function (a, s) { return a + s.count; }, 0);
+    if (totalEl) totalEl.textContent = total.toLocaleString();
+  })();
+
+  /* =========================================================
+     SILENT PROXY — agents + velocity graph
+     ========================================================= */
+  var AGENTS = [
+    { name: "Claude Code", icon: "terminal-square", status: "proxied" },
+    { name: "Cursor", icon: "cpu", status: "proxied" },
+    { name: "GitHub Copilot", icon: "bot", status: "proxied" }
+  ];
+
+  (function proxy() {
+    var host = document.getElementById("agents");
+    var config = host && host.querySelector(".config");
+    if (host && config) {
+      var rows = AGENTS.map(function (a) {
+        return '' +
+        '<div class="agent-row neo">' +
+          '<div class="l">' +
+            '<span class="ico neo-sm" data-icon="' + a.icon + '" data-size="20"></span>' +
+            '<div><div class="nm">' + esc(a.name) + '</div>' +
+            '<div class="sub">tool-layer · diff intercept</div></div>' +
+          '</div>' +
+          '<span class="st"><i class="anim-glow glow-cyan"></i>' + esc(a.status) + '</span>' +
+        '</div>';
+      }).join("");
+      config.insertAdjacentHTML("beforebegin", rows);
+    }
+
+    var mount = document.getElementById("velocity");
+    if (!mount) return;
+
+    var pts = [12, 18, 16, 28, 34, 30, 46, 58, 64, 78, 88, 96];
+    var w = 560, h = 200, pad = 8;
+    var step = (w - pad * 2) / (pts.length - 1);
+    var xy = pts.map(function (p, i) {
+      return [pad + i * step, h - pad - (p / 100) * (h - pad * 2)];
+    });
+    var path = xy.map(function (c, i) {
+      return (i === 0 ? "M " : "L ") + c[0].toFixed(2) + " " + c[1].toFixed(2);
+    }).join(" ");
+    var area = path + " L " + (pad + (pts.length - 1) * step).toFixed(2) + " " + (h - pad) +
+               " L " + pad + " " + (h - pad) + " Z";
+
+    mount.innerHTML =
+      '<svg viewBox="0 0 ' + w + " " + h + '" style="width:100%;height:auto" aria-hidden="true">' +
+        '<defs><linearGradient id="vel" x1="0" y1="0" x2="0" y2="1">' +
+          '<stop offset="0%" stop-color="hsl(184 100% 50%)" stop-opacity="0.35"/>' +
+          '<stop offset="100%" stop-color="hsl(184 100% 50%)" stop-opacity="0"/>' +
+        '</linearGradient></defs>' +
+        [0.25, 0.5, 0.75].map(function (g) {
+          return '<line x1="' + pad + '" x2="' + (w - pad) + '" y1="' + (h * g) + '" y2="' + (h * g) +
+                 '" stroke="hsl(240 20% 14%)" stroke-dasharray="3 5"/>';
+        }).join("") +
+        '<path d="' + area + '" fill="url(#vel)"/>' +
+        '<path d="' + path + '" fill="none" stroke="hsl(184 100% 50%)" stroke-width="2.5" ' +
+          'style="filter:drop-shadow(0 0 6px hsl(184 100% 50% / 0.6))"/>' +
+        xy.map(function (c) {
+          return '<circle cx="' + c[0].toFixed(2) + '" cy="' + c[1].toFixed(2) + '" r="2.5" fill="hsl(184 100% 50%)"/>';
+        }).join("") +
+      "</svg>";
+  })();
+
+  /* =========================================================
+     FOOTER — reveals when you reach the bottom
+     ========================================================= */
+  (function footer() {
+    var cta = document.getElementById("cta");
+    if (!cta) return;
+    function check() {
+      var atBottom = window.innerHeight + window.scrollY >= document.body.offsetHeight - 80;
+      cta.classList.toggle("is-visible", atBottom);
+    }
+    window.addEventListener("scroll", check, { passive: true });
+    window.addEventListener("resize", check);
+    check();
+  })();
+
+  /* Paint every icon placeholder, including the ones just injected. */
+  paintIcons(document);
+})();
+</script>
 </body>
 </html>
